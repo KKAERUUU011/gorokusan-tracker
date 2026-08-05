@@ -251,7 +251,9 @@ function drawLineChart(canvas, labels, values, opts){
   ctx.clearRect(0, 0, width, height);
   const padL = 44, padR = 10, padT = 12, padB = 26;
   const plotW = width - padL - padR, plotH = height - padT - padB;
-  const rawMin = Math.min(...values), rawMax = Math.max(...values);
+  const refVal = opts.refLine ? opts.refLine.value : null;
+  const rangeValues = refVal != null ? [...values, refVal] : values;
+  const rawMin = Math.min(...rangeValues), rawMax = Math.max(...rangeValues);
   const ticks = niceTicks(rawMin, rawMax, 4);
   const min = ticks[0], max = ticks[ticks.length - 1];
   const yFor = (v) => padT + plotH - ((v - min) / (max - min || 1)) * plotH;
@@ -264,6 +266,25 @@ function drawLineChart(canvas, labels, values, opts){
     ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(width - padR, y); ctx.stroke();
     ctx.fillText(opts.valueFormat ? opts.valueFormat(t) : String(t), padL - 6, y + 3);
   });
+
+  if(opts.refLine){
+    const y = yFor(opts.refLine.value);
+    ctx.save();
+    ctx.strokeStyle = opts.refLine.color || "#5C5646";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(width - padR, y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = opts.refLine.color || "#5C5646";
+    ctx.font = "9.5px 'Zen Kaku Gothic New', sans-serif";
+    ctx.textAlign = "left";
+    const labelY = y - 4 > padT + 8 ? y - 4 : y + 12;
+    ctx.fillText(
+      `${opts.refLine.label}${opts.valueFormat ? " " + opts.valueFormat(opts.refLine.value) : ""}`,
+      padL + 4, labelY
+    );
+    ctx.restore();
+  }
 
   ctx.strokeStyle = opts.color || "#1B2A4A";
   ctx.lineWidth = 2;
@@ -360,6 +381,7 @@ function computeStats(list){
     else if(e.type==="nav"){ latestNav=e.price; }
   }
   const valuation = latestNav!=null ? latestNav*totalShares : null;
+  const avgCost = totalShares>0 ? totalCost/totalShares : 0;
   const unrealizedPL = (valuation!=null && totalShares>0) ? valuation-totalCost : null;
   const plPct = (unrealizedPL!=null && totalCost>0) ? (unrealizedPL/totalCost)*100 : null;
   const reinvestAvgPrice = reinvestShares>0 ? reinvestCost/reinvestShares : null;
@@ -368,7 +390,7 @@ function computeStats(list){
     const d=new Date(e.date);
     return e.type==="dividend" && d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth();
   }).reduce((s,e)=>s+e.amount,0);
-  return { totalShares, totalDividends, valuation, thisMonth, latestNav, totalCost, unrealizedPL, plPct, reinvestShares, reinvestCost, reinvestAvgPrice, reinvestEarnedDividend };
+  return { totalShares, totalDividends, valuation, thisMonth, latestNav, totalCost, avgCost, unrealizedPL, plPct, reinvestShares, reinvestCost, reinvestAvgPrice, reinvestEarnedDividend };
 }
 
 function computeYieldChartData(sorted){
@@ -474,7 +496,11 @@ function render(){
     chartCard.style.display = "block";
     const labels = navPoints.map(e=>fmtDate(e.date));
     const data = navPoints.map(e=>e.price);
-    drawLineChart(document.getElementById("navChart"), labels, data, { color: "#1B2A4A", valueFormat: (v) => fmtYen(v) });
+    drawLineChart(document.getElementById("navChart"), labels, data, {
+      color: "#1B2A4A",
+      valueFormat: (v) => fmtYen(v),
+      refLine: stats.avgCost > 0 ? { value: stats.avgCost, label: "平均取得単価", color: "#8B3A3A" } : null,
+    });
   } else {
     chartCard.style.display = "none";
   }
