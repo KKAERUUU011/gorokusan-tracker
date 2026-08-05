@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#1B2A4A" />
+<title>ゴロクサン | 563A 運用ノート</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icon-192.png" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="ゴロクサン" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --paper:#F7F5EE; --ink:#1B2A4A; --gold:#C9A227; --loss:#8B3A3A; --line:#DCD5C3; --muted:#8A8371;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:#241F17;font-family:'Zen Kaku Gothic New',sans-serif;}
+  .num{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;}
+  .display{font-family:'Shippori Mincho',serif;}
+  header{background:var(--ink);color:var(--paper);padding:28px 20px 24px;}
+  header .eyebrow{font-family:'Shippori Mincho',serif;font-size:13px;letter-spacing:3px;opacity:.7;}
+  header h1{font-family:'Shippori Mincho',serif;font-size:30px;font-weight:700;margin:4px 0 2px;}
+  header .sub{font-size:13px;opacity:.75;}
+  .nav-update{display:flex;align-items:center;justify-content:space-between;width:100%;background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.4);border-radius:10px;padding:10px 12px;margin-top:20px;cursor:pointer;color:var(--paper);font-family:inherit;}
+  .nav-update .l{font-size:11px;opacity:.7;}
+  .nav-update .v{font-size:20px;font-weight:700;}
+  .nav-update .edit{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--gold);}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+  .stat{flex:1;background:rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;}
+  .stat .l{font-size:11px;opacity:.7;}
+  .stat .v{font-size:18px;font-weight:600;}
+  main{max-width:640px;margin:0 auto;padding:18px 16px 110px;}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px;}
+  .tabs{display:flex;gap:6px;margin-bottom:4px;}
+  .tab-btn{flex:1;padding:8px 0;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;background:var(--paper);color:#5C5646;}
+  .tab-btn.active{background:var(--ink);color:#fff;}
+  .card h2{font-size:13px;font-weight:600;margin:0 0 8px;}
+  .goal-row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px;}
+  .bar{height:8px;background:#EFE9DA;border-radius:4px;overflow:hidden;}
+  .bar > div{height:100%;background:var(--gold);border-radius:4px;transition:width .4s ease;}
+  #yieldChartCard{display:none;padding:16px 8px 8px;}
+  #yieldChartCard h2{padding:0 8px 4px;margin:0;}
+  #yieldChartCard .hint{font-size:11px;color:var(--muted);padding:0 8px 8px;}
+  #divChartCard{display:none;padding:16px 8px 8px;}
+  #divChartCard h2{padding:0 8px 8px;}
+  #chartCard{display:none;padding:16px 8px 8px;}
+  #chartCard h2{padding:0 8px 8px;}
+  #draftCard{display:none;border-color:var(--gold);}
+  #draftCard .row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  #draftCard .row span{font-size:13px;font-weight:600;color:#8A6D0E;}
+  #draftCard button{display:flex;align-items:center;gap:4px;background:var(--ink);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;}
+  #draftText{width:100%;border:1px solid #EFE9DA;border-radius:8px;padding:10px;font-family:inherit;font-size:13.5px;line-height:1.6;resize:vertical;}
+  #ledger .empty{padding:24px 0;font-size:13px;color:var(--muted);text-align:center;}
+  .ledger-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px dashed var(--line);}
+  .ledger-row:last-child{border-bottom:none;}
+  .icon-circle{width:34px;height:34px;border-radius:50%;background:var(--paper);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;}
+  .stamp{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;border:2px solid var(--gold);color:var(--gold);font-family:'Shippori Mincho',serif;font-weight:700;font-size:13px;transform:rotate(-8deg);flex-shrink:0;}
+  .ledger-meta{font-size:12px;color:var(--muted);}
+  .ledger-val{font-size:14.5px;font-weight:600;}
+  .del-btn{background:none;border:none;color:#B8AF98;cursor:pointer;padding:6px;font-size:16px;}
+  .fabs{position:fixed;bottom:20px;left:0;right:0;display:flex;justify-content:center;gap:10px;padding:0 16px;}
+  .fab{display:flex;align-items:center;gap:6px;background:var(--ink);color:#fff;border:none;border-radius:999px;padding:10px 16px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(27,42,74,.35);cursor:pointer;}
+  #modalOverlay{position:fixed;inset:0;background:rgba(27,42,74,.45);display:none;align-items:flex-end;z-index:50;}
+  #modal{background:var(--paper);width:100%;border-radius:16px 16px 0 0;padding:20px;padding-bottom:28px;}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+  .modal-head h3{font-family:'Shippori Mincho',serif;font-size:18px;font-weight:700;margin:0;}
+  .modal-head button{background:none;border:none;cursor:pointer;font-size:20px;}
+  label{display:block;font-size:12px;color:#5C5646;margin-bottom:4px;}
+  input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);margin-bottom:12px;font-family:'JetBrains Mono',monospace;font-size:14px;background:#fff;}
+  .err{color:var(--loss);font-size:12px;margin-bottom:10px;}
+  .source-toggle{display:flex;gap:8px;margin-bottom:12px;}
+  .src-btn{flex:1;padding:9px 0;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--line);background:#fff;color:#5C5646;}
+  .src-btn.active{border-color:var(--ink);background:var(--ink);color:#fff;}
+  .reinvest-tag{margin-left:6px;color:#8A6D0E;font-weight:600;}
+  #reinvestCard{display:none;}
+  #reinvestCard .row{display:flex;gap:10px;}
+  #reinvestCard .col{flex:1;}
+  #reinvestCard .l{font-size:11px;color:var(--muted);}
+  #reinvestCard .v{font-size:17px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+  .submit-btn{width:100%;background:var(--ink);color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important;}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">投資通帳</div>
+  <h1>ゴロクサン</h1>
+  <div class="sub">563A 運用ノート — 購入・分配金・基準価額</div>
+  <button type="button" class="nav-update" id="navUpdateBtn">
+    <div><div class="l">基準価額(最新)</div><div class="v num" id="statNav">未登録</div></div>
+    <div class="edit">✎ 更新</div>
+  </button>
+  <div class="stats">
+    <div class="stat"><div class="l">保有口数</div><div class="v num" id="statShares">0口</div></div>
+    <div class="stat"><div class="l">評価額</div><div class="v num" id="statValuation">―</div></div>
+    <div class="stat"><div class="l">評価損益</div><div class="v num" id="statPL">―</div></div>
+    <div class="stat"><div class="l">累計分配金</div><div class="v num" id="statDividends">¥0</div></div>
+  </div>
+</header>
+
+<main>
+  <div class="card" id="reinvestCard">
+    <h2>分配金再投資の内訳</h2>
+    <div class="row" style="flex-wrap:wrap;">
+      <div class="col" style="min-width:45%;"><div class="l">再投資で増えた口数</div><div class="v num" id="reinvestShares" style="color:#8A6D0E;">0口</div></div>
+      <div class="col" style="min-width:45%;"><div class="l">平均取得単価</div><div class="v num" id="reinvestAvgPrice">―</div></div>
+      <div class="col" style="min-width:45%;"><div class="l">その口数が得た分配金</div><div class="v num" id="reinvestEarnedDividend" style="color:#3D5A80;">¥0</div></div>
+    </div>
+    <div style="font-size:10.5px;color:#B8AF98;margin-top:8px;">※「その口数が得た分配金」は、各回の分配金を当時の保有口数で按分した推定値です</div>
+  </div>
+
+  <div class="card" id="divChartCard">
+    <h2>分配金の推移(月次)</h2>
+    <canvas id="dividendChart" height="160"></canvas>
+  </div>
+
+  <div class="card" id="yieldChartCard">
+    <h2>年利換算利回り(前月平均基準価額比)</h2>
+    <div class="hint">各月の分配金 ÷ 前月平均基準価額 × 12ヶ月分</div>
+    <canvas id="yieldChart" height="160"></canvas>
+  </div>
+
+  <div class="card" id="chartCard">
+    <h2>基準価額の推移</h2>
+    <canvas id="navChart" height="160"></canvas>
+  </div>
+
+  <div class="card" id="draftCard">
+    <div class="row">
+      <span>X投稿ドラフト</span>
+      <button id="copyBtn">コピー</button>
+    </div>
+    <textarea id="draftText" rows="5"></textarea>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <button type="button" class="tab-btn active" id="tabPurchase">売買</button>
+      <button type="button" class="tab-btn" id="tabDividend">分配金</button>
+    </div>
+    <div id="ledger"></div>
+  </div>
+</main>
+
+<div class="fabs">
+  <button class="fab" data-type="purchase">＋ 購入</button>
+  <button class="fab" data-type="dividend">＋ 分配金</button>
+</div>
+
+<div id="modalOverlay">
+  <form id="modal">
+    <div class="modal-head"><h3 id="modalTitle">記録</h3><button type="button" id="modalClose">×</button></div>
+    <label>日付</label>
+    <input type="date" id="fDate" required />
+    <div id="fieldsPurchase" style="display:none;">
+      <label>取得方法</label>
+      <div class="source-toggle" id="sourceToggle">
+        <button type="button" class="src-btn active" data-src="cash">通常購入</button>
+        <button type="button" class="src-btn" data-src="reinvest">分配金再投資</button>
+      </div>
+      <label>口数</label>
+      <input type="number" step="any" id="fShares" placeholder="例: 100" />
+      <label>取得単価(円)</label>
+      <input type="number" step="any" id="fPrice1" placeholder="例: 1250" />
+    </div>
+    <div id="fieldsDividend" style="display:none;">
+      <label>分配金額(円)</label>
+      <input type="number" step="any" id="fAmount" placeholder="例: 3200" />
+    </div>
+    <div id="fieldsNav" style="display:none;">
+      <label>基準価額(円)</label>
+      <input type="number" step="any" id="fPrice2" placeholder="例: 1320" />
+    </div>
+    <div class="err" id="formErr" style="display:none;"></div>
+    <div style="display:flex;gap:8px;">
+      <button type="button" id="saveOnlyBtn" class="submit-btn" style="flex:1;background:#fff;color:#1B2A4A;border:1px solid #1B2A4A;">記録のみ保存</button>
+      <button type="button" id="saveWithDraftBtn" class="submit-btn" style="flex:1.3;">記録して投稿文を作成</button>
+    </div>
+  </form>
+</div>
+
+<script>
+const STORAGE_KEY = "gorokusan-entries";
+const MONTHLY_GOAL = 10000;
+const TYPES = {
+  purchase: { label: "購入" },
+  dividend: { label: "分配金" },
+  nav: { label: "基準価額" },
+};
+
+let entries = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+let chart = null;
+let dividendChart = null;
+let yieldChart = null;
+let formType = "purchase";
+let purchaseSource = "cash";
+let ledgerTab = "purchase";
+
+function fmtYen(n){ return "¥" + Math.round(n).toLocaleString("ja-JP"); }
+function fmtDate(d){ const dt=new Date(d); return `${dt.getFullYear()}.${String(dt.getMonth()+1).padStart(2,"0")}.${String(dt.getDate()).padStart(2,"0")}`; }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); }
+function sortedEntries(){ return [...entries].sort((a,b)=> new Date(a.date)-new Date(b.date)); }
+
+function computeStats(list){
+  let totalShares=0, totalCost=0, totalDividends=0, latestNav=null;
+  let reinvestShares=0, reinvestCost=0, reinvestEarnedDividend=0;
+  for(const e of list){
+    if(e.type==="purchase"){
+      totalShares+=e.shares; totalCost+=e.shares*e.price;
+      if(e.source==="reinvest"){ reinvestShares+=e.shares; reinvestCost+=e.shares*e.price; }
+    }
+    else if(e.type==="dividend"){
+      totalDividends+=e.amount;
+      if(totalShares > 0){
+        const perShare = e.amount / totalShares;
+        reinvestEarnedDividend += perShare * reinvestShares;
+      }
+    }
+    else if(e.type==="nav"){ latestNav=e.price; }
+  }
+  const valuation = latestNav!=null ? latestNav*totalShares : null;
+  const unrealizedPL = (valuation!=null && totalShares>0) ? valuation-totalCost : null;
+  const plPct = (unrealizedPL!=null && totalCost>0) ? (unrealizedPL/totalCost)*100 : null;
+  const reinvestAvgPrice = reinvestShares>0 ? reinvestCost/reinvestShares : null;
+  const now = new Date();
+  const thisMonth = list.filter(e=>{
+    const d=new Date(e.date);
+    return e.type==="dividend" && d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth();
+  }).reduce((s,e)=>s+e.amount,0);
+  return { totalShares, totalDividends, valuation, thisMonth, latestNav, totalCost, unrealizedPL, plPct, reinvestShares, reinvestCost, reinvestAvgPrice, reinvestEarnedDividend };
+}
+
+function computeYieldChartData(sorted){
+  const navSum = {}, navCount = {};
+  for(const e of sorted){
+    if(e.type !== "nav") continue;
+    const d = new Date(e.date);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    navSum[key] = (navSum[key]||0) + e.price;
+    navCount[key] = (navCount[key]||0) + 1;
+  }
+  const avgNavByMonth = {};
+  Object.keys(navSum).forEach(k => { avgNavByMonth[k] = navSum[k] / navCount[k]; });
+
+  const divByMonth = {};
+  for(const e of sorted){
+    if(e.type !== "dividend") continue;
+    const d = new Date(e.date);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    divByMonth[key] = (divByMonth[key]||0) + e.amount;
+  }
+
+  function sharesHeldAsOf(dateObj){
+    return sorted.filter(e => e.type==="purchase" && new Date(e.date) <= dateObj)
+      .reduce((s,e)=>s+e.shares, 0);
+  }
+
+  const results = [];
+  Object.keys(divByMonth).sort().forEach(key => {
+    const [y, m] = key.split("-").map(Number);
+    const prevDate = new Date(y, m-1, 1);
+    const prevKey = `${prevDate.getFullYear()}-${prevDate.getMonth()}`;
+    const avgNav = avgNavByMonth[prevKey];
+    if(avgNav == null) return;
+    const endOfPrevMonth = new Date(y, m, 0);
+    const shares = sharesHeldAsOf(endOfPrevMonth);
+    if(shares <= 0) return;
+    const div = divByMonth[key];
+    const yieldPct = (div / (avgNav * shares)) * 12 * 100;
+    results.push({ month: `${y}.${String(m+1).padStart(2,"0")}`, yield: Number(yieldPct.toFixed(2)) });
+  });
+  return results;
+}
+
+function render(){
+  const sorted = sortedEntries();
+  const stats = computeStats(sorted);
+
+  document.getElementById("statNav").textContent = stats.latestNav!=null ? fmtYen(stats.latestNav) : "未登録";
+  document.getElementById("statShares").textContent = stats.totalShares + "口";
+  document.getElementById("statValuation").textContent = stats.valuation!=null ? fmtYen(stats.valuation) : "―";
+  const plEl = document.getElementById("statPL");
+  if(stats.unrealizedPL == null){
+    plEl.textContent = "―";
+    plEl.style.color = "";
+  } else {
+    const pct = stats.plPct!=null ? ` (${stats.plPct>=0?"+":""}${stats.plPct.toFixed(1)}%)` : "";
+    plEl.textContent = `${stats.unrealizedPL>=0?"+":""}${fmtYen(stats.unrealizedPL)}${pct}`;
+    plEl.style.color = stats.unrealizedPL > 0 ? "#8FD4A8" : stats.unrealizedPL < 0 ? "#E38787" : "";
+  }
+  document.getElementById("statDividends").textContent = fmtYen(stats.totalDividends);
+
+  const reinvestCard = document.getElementById("reinvestCard");
+  if(stats.reinvestShares > 0){
+    reinvestCard.style.display = "block";
+    document.getElementById("reinvestShares").textContent = stats.reinvestShares + "口";
+    document.getElementById("reinvestAvgPrice").textContent = stats.reinvestAvgPrice!=null ? fmtYen(stats.reinvestAvgPrice) : "―";
+    document.getElementById("reinvestEarnedDividend").textContent = fmtYen(stats.reinvestEarnedDividend);
+  } else {
+    reinvestCard.style.display = "none";
+  }
+
+  const divPoints = {};
+  sorted.filter(e => e.type === "dividend").forEach(e => {
+    const d = new Date(e.date);
+    const key = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}`;
+    divPoints[key] = (divPoints[key] || 0) + e.amount;
+  });
+  const divLabels = Object.keys(divPoints);
+  const divChartCard = document.getElementById("divChartCard");
+  if(divLabels.length > 0){
+    divChartCard.style.display = "block";
+    const divData = Object.values(divPoints);
+    if(dividendChart){ dividendChart.data.labels=divLabels; dividendChart.data.datasets[0].data=divData; dividendChart.update(); }
+    else {
+      dividendChart = new Chart(document.getElementById("dividendChart"), {
+        type: "bar",
+        data: { labels: divLabels, datasets: [{ label:"分配金", data: divData, backgroundColor:"#C9A227", borderRadius:4 }] },
+        options: { plugins:{legend:{display:false}}, scales:{ x:{ticks:{font:{family:"JetBrains Mono",size:10}}}, y:{ticks:{font:{family:"JetBrains Mono",size:10}}} } }
+      });
+    }
+  } else {
+    divChartCard.style.display = "none";
+  }
+
+  const yieldData = computeYieldChartData(sorted);
+  const yieldChartCard = document.getElementById("yieldChartCard");
+  if(yieldData.length > 0){
+    yieldChartCard.style.display = "block";
+    const yLabels = yieldData.map(d=>d.month);
+    const yValues = yieldData.map(d=>d.yield);
+    if(yieldChart){ yieldChart.data.labels=yLabels; yieldChart.data.datasets[0].data=yValues; yieldChart.update(); }
+    else {
+      yieldChart = new Chart(document.getElementById("yieldChart"), {
+        type: "bar",
+        data: { labels: yLabels, datasets: [{ label:"年利換算利回り", data: yValues, backgroundColor:"#3D5A80", borderRadius:4 }] },
+        options: {
+          plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:(ctx)=> `${ctx.parsed.y}%` } } },
+          scales:{
+            x:{ticks:{font:{family:"JetBrains Mono",size:10}}},
+            y:{ticks:{font:{family:"JetBrains Mono",size:10}, callback:(v)=>`${v}%`}}
+          }
+        }
+      });
+    }
+  } else {
+    yieldChartCard.style.display = "none";
+  }
+
+  const navPoints = sorted.filter(e=>e.type==="nav");
+  const chartCard = document.getElementById("chartCard");
+  if(navPoints.length > 1){
+    chartCard.style.display = "block";
+    const labels = navPoints.map(e=>fmtDate(e.date));
+    const data = navPoints.map(e=>e.price);
+    if(chart){ chart.data.labels=labels; chart.data.datasets[0].data=data; chart.update(); }
+    else {
+      chart = new Chart(document.getElementById("navChart"), {
+        type: "line",
+        data: { labels, datasets: [{ label:"基準価額", data, borderColor:"#1B2A4A", backgroundColor:"#1B2A4A", tension:0.3, pointRadius:3 }] },
+        options: { plugins:{legend:{display:false}}, scales:{ x:{ticks:{font:{family:"JetBrains Mono",size:10}}}, y:{ticks:{font:{family:"JetBrains Mono",size:10}}} } }
+      });
+    }
+  } else {
+    chartCard.style.display = "none";
+  }
+
+  const ledger = document.getElementById("ledger");
+  const tabEntries = sorted.filter(e => e.type === ledgerTab);
+  if(tabEntries.length === 0){
+    ledger.innerHTML = `<div class="empty">${ledgerTab==="purchase" ? "まだ購入記録がありません。" : "まだ分配金の記録がありません。"}</div>`;
+  } else {
+    ledger.innerHTML = [...tabEntries].reverse().map(e=>{
+      const T = TYPES[e.type];
+      let iconHtml, valHtml, tagHtml = "";
+      if(e.type==="dividend"){ iconHtml = '<div class="stamp">済</div>'; valHtml = fmtYen(e.amount); }
+      else {
+        iconHtml = '<div class="icon-circle">💰</div>';
+        valHtml = `${e.shares}口 × ${fmtYen(e.price)}`;
+        if(e.source==="reinvest") tagHtml = '<span class="reinvest-tag">再投資</span>';
+      }
+      return `<div class="ledger-row">
+        ${iconHtml}
+        <div style="flex:1;min-width:0;">
+          <div class="ledger-meta num">${fmtDate(e.date)} ・ ${T.label}${tagHtml}</div>
+          <div class="ledger-val num">${valHtml}</div>
+        </div>
+        <button class="del-btn" data-id="${e.id}" aria-label="削除">×</button>
+      </div>`;
+    }).join("");
+  }
+
+  document.querySelectorAll(".del-btn").forEach(btn=>{
+    btn.onclick = ()=>{ entries = entries.filter(e=>e.id!==btn.dataset.id); save(); render(); };
+  });
+}
+
+function buildDraft(entry, allEntries){
+  const s = computeStats(sortedEntries());
+  if(entry.type==="purchase"){
+    const tag = entry.source==="reinvest" ? "(分配金再投資)" : "";
+    return `563Aを${entry.shares}口購入📝${tag}\n取得単価 ${fmtYen(entry.price)}\n保有口数は${s.totalShares}口になりました🌱\n\n#563A #グローバルX #サイドFIRE`;
+  }
+  if(entry.type==="dividend"){
+    return `563Aの分配金 ${fmtYen(entry.amount)} を受け取りました💰\n今月累計 ${fmtYen(s.thisMonth)} / 目標${fmtYen(MONTHLY_GOAL)}\n\n#563A #カバードコール #配当金生活`;
+  }
+  return `563Aの基準価額は${fmtYen(entry.price)}でした📊\n保有${s.totalShares}口の評価額は${s.valuation!=null?fmtYen(s.valuation):"―"}\n\n#563A #資産推移`;
+}
+
+// modal
+const overlay = document.getElementById("modalOverlay");
+const modal = document.getElementById("modal");
+function openForm(type){
+  formType = type;
+  purchaseSource = "cash";
+  document.querySelectorAll(".src-btn").forEach(b=>{
+    b.classList.toggle("active", b.dataset.src === "cash");
+  });
+  document.getElementById("modalTitle").textContent = TYPES[type].label + "を記録";
+  document.getElementById("fDate").value = todayISO();
+  document.getElementById("fShares").value = "";
+  document.getElementById("fPrice1").value = "";
+  document.getElementById("fAmount").value = "";
+  document.getElementById("fPrice2").value = "";
+  document.getElementById("formErr").style.display = "none";
+  document.getElementById("fieldsPurchase").style.display = type==="purchase" ? "block":"none";
+  document.getElementById("fieldsDividend").style.display = type==="dividend" ? "block":"none";
+  document.getElementById("fieldsNav").style.display = type==="nav" ? "block":"none";
+  overlay.style.display = "flex";
+}
+document.querySelectorAll(".fab").forEach(b=> b.onclick = ()=> openForm(b.dataset.type));
+document.querySelectorAll(".src-btn").forEach(b=>{
+  b.onclick = ()=>{
+    purchaseSource = b.dataset.src;
+    document.querySelectorAll(".src-btn").forEach(x=> x.classList.toggle("active", x===b));
+  };
+});
+document.getElementById("navUpdateBtn").onclick = ()=> openForm("nav");
+document.getElementById("tabPurchase").onclick = ()=>{
+  ledgerTab = "purchase";
+  document.getElementById("tabPurchase").classList.add("active");
+  document.getElementById("tabDividend").classList.remove("active");
+  render();
+};
+document.getElementById("tabDividend").onclick = ()=>{
+  ledgerTab = "dividend";
+  document.getElementById("tabDividend").classList.add("active");
+  document.getElementById("tabPurchase").classList.remove("active");
+  render();
+};
+document.getElementById("modalClose").onclick = ()=> overlay.style.display="none";
+overlay.onclick = (e)=>{ if(e.target===overlay) overlay.style.display="none"; };
+
+document.getElementById("modal").onsubmit = (e)=> e.preventDefault();
+
+function handleSave(generateDraft){
+  const errEl = document.getElementById("formErr");
+  const date = document.getElementById("fDate").value;
+  let entry = { id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())), type: formType, date };
+
+  if(formType==="purchase"){
+    const shares = parseFloat(document.getElementById("fShares").value);
+    const price = parseFloat(document.getElementById("fPrice1").value);
+    if(!shares || !price){ errEl.textContent="口数と単価を入力してください"; errEl.style.display="block"; return; }
+    entry.shares = shares; entry.price = price; entry.source = purchaseSource;
+  } else if(formType==="dividend"){
+    const amount = parseFloat(document.getElementById("fAmount").value);
+    if(!amount){ errEl.textContent="分配金額を入力してください"; errEl.style.display="block"; return; }
+    entry.amount = amount;
+  } else {
+    const price = parseFloat(document.getElementById("fPrice2").value);
+    if(!price){ errEl.textContent="基準価額を入力してください"; errEl.style.display="block"; return; }
+    entry.price = price;
+  }
+
+  entries.push(entry);
+  save();
+  render();
+  overlay.style.display = "none";
+
+  if(generateDraft){
+    const draftCard = document.getElementById("draftCard");
+    draftCard.style.display = "block";
+    document.getElementById("draftText").value = buildDraft(entry, entries);
+  }
+}
+
+document.getElementById("saveOnlyBtn").onclick = ()=> handleSave(false);
+document.getElementById("saveWithDraftBtn").onclick = ()=> handleSave(true);
+
+document.getElementById("copyBtn").onclick = ()=>{
+  const ta = document.getElementById("draftText");
+  navigator.clipboard.writeText(ta.value).then(()=>{
+    const btn = document.getElementById("copyBtn");
+    const orig = btn.textContent;
+    btn.textContent = "コピー済み";
+    setTimeout(()=> btn.textContent = orig, 1500);
+  });
+};
+
+render();
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>

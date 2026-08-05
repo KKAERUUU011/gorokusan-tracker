@@ -1,0 +1,15 @@
+{
+  "name": "ゴロクサン | 563A運用ノート",
+  "short_name": "ゴロクサン",
+  "description": "563Aの購入・分配金・基準価額を記録し、X投稿ドラフトを自動生成する通帳アプリ",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F7F5EE",
+  "theme_color": "#1B2A4A",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
