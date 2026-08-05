@@ -144,6 +144,7 @@
     <div class="tabs">
       <button type="button" class="tab-btn active" id="tabPurchase">売買</button>
       <button type="button" class="tab-btn" id="tabDividend">分配金</button>
+      <button type="button" class="tab-btn" id="tabNav">基準価額</button>
     </div>
     <div id="ledger"></div>
   </div>
@@ -480,13 +481,15 @@ function render(){
 
   const ledger = document.getElementById("ledger");
   const tabEntries = sorted.filter(e => e.type === ledgerTab);
+  const emptyMsg = { purchase: "まだ購入記録がありません。", dividend: "まだ分配金の記録がありません。", nav: "まだ基準価額の記録がありません。" };
   if(tabEntries.length === 0){
-    ledger.innerHTML = `<div class="empty">${ledgerTab==="purchase" ? "まだ購入記録がありません。" : "まだ分配金の記録がありません。"}</div>`;
+    ledger.innerHTML = `<div class="empty">${emptyMsg[ledgerTab]}</div>`;
   } else {
     ledger.innerHTML = [...tabEntries].reverse().map(e=>{
       const T = TYPES[e.type];
       let iconHtml, valHtml, tagHtml = "";
       if(e.type==="dividend"){ iconHtml = '<div class="stamp">済</div>'; valHtml = fmtYen(e.amount); }
+      else if(e.type==="nav"){ iconHtml = '<div class="icon-circle">📈</div>'; valHtml = fmtYen(e.price); }
       else {
         iconHtml = '<div class="icon-circle">💰</div>';
         valHtml = `${e.shares}口 × ${fmtYen(e.price)}`;
@@ -553,12 +556,21 @@ document.getElementById("tabPurchase").onclick = ()=>{
   ledgerTab = "purchase";
   document.getElementById("tabPurchase").classList.add("active");
   document.getElementById("tabDividend").classList.remove("active");
+  document.getElementById("tabNav").classList.remove("active");
   render();
 };
 document.getElementById("tabDividend").onclick = ()=>{
   ledgerTab = "dividend";
   document.getElementById("tabDividend").classList.add("active");
   document.getElementById("tabPurchase").classList.remove("active");
+  document.getElementById("tabNav").classList.remove("active");
+  render();
+};
+document.getElementById("tabNav").onclick = ()=>{
+  ledgerTab = "nav";
+  document.getElementById("tabNav").classList.add("active");
+  document.getElementById("tabPurchase").classList.remove("active");
+  document.getElementById("tabDividend").classList.remove("active");
   render();
 };
 document.getElementById("modalClose").onclick = ()=> overlay.style.display="none";
@@ -587,6 +599,13 @@ function handleSave(generateDraft){
   }
 
   entries.push(entry);
+  if(formType === "nav"){
+    // 同じ日付の基準価額が既にあれば古い方を消して重複を防ぐ
+    const dupIds = entries.filter(x => x.type === "nav" && x.date === entry.date && x.id !== entry.id).map(x => x.id);
+    if(dupIds.length){
+      entries = entries.filter(x => !dupIds.includes(x.id));
+    }
+  }
   save();
   render();
   overlay.style.display = "none";
