@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#1B2A4A" />
+<meta name="theme-color" content="#10192E" />
 <title>ゴロクサン | 563A 運用ノート</title>
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" href="icon-192.png" />
@@ -16,20 +16,20 @@
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --paper:#F7F5EE; --ink:#1B2A4A; --gold:#C9A227; --loss:#8B3A3A; --line:#DCD5C3; --muted:#8A8371;
+    --paper:#F7F5EE; --ink:#10192E; --ink-light:#1B2A4A; --gold:#C9A227; --copper:#C4632B; --loss:#8B3A3A; --line:#DCD5C3; --muted:#8A8371;
   }
   *{box-sizing:border-box;}
-  body{margin:0;background:var(--paper);color:#241F17;font-family:'Zen Kaku Gothic New',sans-serif;}
+  body{margin:0;background:var(--ink);color:#241F17;font-family:'Zen Kaku Gothic New',sans-serif;}
   .num{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;}
   .display{font-family:'Shippori Mincho',serif;}
-  header{background:var(--ink);color:var(--paper);padding:28px 20px 24px;}
+  header{background:radial-gradient(circle at 88% -15%, rgba(196,99,43,0.38), transparent 55%), var(--ink);color:var(--paper);padding:28px 20px 24px;position:relative;overflow:hidden;}
   header .eyebrow{font-family:'Shippori Mincho',serif;font-size:13px;letter-spacing:3px;opacity:.7;}
   header h1{font-family:'Shippori Mincho',serif;font-size:30px;font-weight:700;margin:4px 0 2px;}
   header .sub{font-size:13px;opacity:.75;}
-  .nav-update{display:flex;align-items:center;justify-content:space-between;width:100%;background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.4);border-radius:10px;padding:10px 12px;margin-top:20px;cursor:pointer;color:var(--paper);font-family:inherit;}
+  .nav-update{display:flex;align-items:center;justify-content:space-between;width:100%;background:rgba(196,99,43,.18);border:1px solid rgba(196,99,43,.5);border-radius:10px;padding:10px 12px;margin-top:20px;cursor:pointer;color:var(--paper);font-family:inherit;}
   .nav-update .l{font-size:11px;opacity:.7;}
   .nav-update .v{font-size:20px;font-weight:700;}
-  .nav-update .edit{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--gold);}
+  .nav-update .edit{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--copper);}
   .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
   .stat{flex:1;background:rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;}
   .stat .l{font-size:11px;opacity:.7;}
@@ -65,7 +65,7 @@
   .ledger-val{font-size:14.5px;font-weight:600;}
   .del-btn{background:none;border:none;color:#B8AF98;cursor:pointer;padding:6px;font-size:16px;}
   .fabs{position:fixed;bottom:20px;left:0;right:0;display:flex;justify-content:center;gap:10px;padding:0 16px;}
-  .fab{display:flex;align-items:center;gap:6px;background:var(--ink);color:#fff;border:none;border-radius:999px;padding:10px 16px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(27,42,74,.35);cursor:pointer;}
+  .fab{display:flex;align-items:center;gap:6px;background:var(--ink-light);color:#fff;border:1px solid rgba(196,99,43,.5);border-radius:999px;padding:10px 16px;font-size:13px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.45);cursor:pointer;}
   #modalOverlay{position:fixed;inset:0;background:rgba(27,42,74,.45);display:none;align-items:flex-end;z-index:50;}
   #modal{background:var(--paper);width:100%;border-radius:16px 16px 0 0;padding:20px;padding-bottom:28px;}
   .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
@@ -286,6 +286,22 @@ function drawLineChart(canvas, labels, values, opts){
     ctx.restore();
   }
 
+  if(opts.areaFill){
+    const grad = ctx.createLinearGradient(0, padT, 0, padT + plotH);
+    grad.addColorStop(0, opts.areaFill.top || "rgba(196,99,43,0.28)");
+    grad.addColorStop(1, opts.areaFill.bottom || "rgba(196,99,43,0)");
+    ctx.beginPath();
+    values.forEach((v, i) => {
+      const x = xFor(i), y = yFor(v);
+      if(i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.lineTo(xFor(values.length - 1), padT + plotH);
+    ctx.lineTo(xFor(0), padT + plotH);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+
   ctx.strokeStyle = opts.color || "#1B2A4A";
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -497,8 +513,9 @@ function render(){
     const labels = navPoints.map(e=>fmtDate(e.date));
     const data = navPoints.map(e=>e.price);
     drawLineChart(document.getElementById("navChart"), labels, data, {
-      color: "#1B2A4A",
+      color: "#C4632B",
       valueFormat: (v) => fmtYen(v),
+      areaFill: true,
       refLine: stats.avgCost > 0 ? { value: stats.avgCost, label: "平均取得単価", color: "#8B3A3A" } : null,
     });
   } else {
@@ -515,7 +532,7 @@ function render(){
       const T = TYPES[e.type];
       let iconHtml, valHtml, tagHtml = "";
       if(e.type==="dividend"){ iconHtml = '<div class="stamp">済</div>'; valHtml = fmtYen(e.amount); }
-      else if(e.type==="nav"){ iconHtml = '<div class="icon-circle">📈</div>'; valHtml = fmtYen(e.price); }
+      else if(e.type==="nav"){ iconHtml = '<div class="icon-circle" style="background:rgba(196,99,43,.14);">📈</div>'; valHtml = fmtYen(e.price); }
       else {
         iconHtml = '<div class="icon-circle">💰</div>';
         valHtml = `${e.shares}口 × ${fmtYen(e.price)}`;
