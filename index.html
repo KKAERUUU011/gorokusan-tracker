@@ -30,6 +30,10 @@
   .nav-update .l{font-size:11px;opacity:.7;}
   .nav-update .v{font-size:20px;font-weight:700;}
   .nav-update .edit{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--copper);}
+  .nasdaq-ref{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 12px;margin-top:10px;}
+  .nasdaq-ref .l{font-size:11px;opacity:.7;}
+  .nasdaq-ref .v{font-size:18px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+  .nasdaq-ref .updated{font-size:10px;opacity:.55;margin-top:2px;}
   .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
   .stat{flex:1;background:rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;}
   .stat .l{font-size:11px;opacity:.7;}
@@ -97,6 +101,11 @@
     <div><div class="l">基準価額(最新)</div><div class="v num" id="statNav">未登録</div></div>
     <div class="edit">✎ 更新</div>
   </button>
+  <div class="nasdaq-ref" id="nasdaqRef" style="display:none;">
+    <div class="l">NASDAQ100(参考・自動取得)</div>
+    <div class="v num" id="nasdaqValue">―</div>
+    <div class="updated" id="nasdaqUpdated"></div>
+  </div>
   <div class="stats">
     <div class="stat"><div class="l">保有口数</div><div class="v num" id="statShares">0口</div></div>
     <div class="stat"><div class="l">評価額</div><div class="v num" id="statValuation">―</div></div>
@@ -674,6 +683,18 @@ document.getElementById("copyBtn").onclick = ()=>{
 };
 
 render();
+
+// NASDAQ100(GitHub Actionsが1日1回更新するnasdaq100.jsonを読み込むだけ。失敗時は静かに非表示のまま)
+fetch("./nasdaq100.json", { cache: "no-store" })
+  .then(res => res.ok ? res.json() : Promise.reject())
+  .then(data => {
+    const ref = document.getElementById("nasdaqRef");
+    document.getElementById("nasdaqValue").textContent = Number(data.value).toLocaleString("en-US", { maximumFractionDigits: 2 });
+    const d = new Date(data.updated_at);
+    document.getElementById("nasdaqUpdated").textContent = `最終更新: ${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}`;
+    ref.style.display = "block";
+  })
+  .catch(() => {});
 
 let resizeTimer = null;
 window.addEventListener("resize", () => {
