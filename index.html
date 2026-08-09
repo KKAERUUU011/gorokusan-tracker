@@ -74,6 +74,8 @@
   label{display:block;font-size:12px;color:#5C5646;margin-bottom:4px;}
   input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);margin-bottom:12px;font-family:'JetBrains Mono',monospace;font-size:14px;background:#fff;}
   .err{color:var(--loss);font-size:12px;margin-bottom:10px;}
+  .last-hint{display:flex;align-items:center;justify-content:space-between;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:12px;font-size:12px;color:#5C5646;}
+  .last-hint button{background:var(--ink);color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11.5px;cursor:pointer;}
   .source-toggle{display:flex;gap:8px;margin-bottom:12px;}
   .src-btn{flex:1;padding:9px 0;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--line);background:#fff;color:#5C5646;}
   .src-btn.active{border-color:var(--ink);background:var(--ink);color:#fff;}
@@ -106,6 +108,15 @@
 </header>
 
 <main>
+  <div class="card" id="summaryCard" style="display:none;">
+    <div class="row" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <h2 style="margin:0;">月次サマリー</h2>
+      <select id="summaryMonthSelect" style="border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-family:'JetBrains Mono',monospace;font-size:12px;background:#fff;"></select>
+    </div>
+    <textarea id="summaryText" rows="7" readonly style="width:100%;border:1px solid #EFE9DA;border-radius:8px;padding:10px;font-family:'Zen Kaku Gothic New',sans-serif;font-size:13.5px;line-height:1.7;resize:vertical;background:var(--paper);"></textarea>
+    <button type="button" id="summaryCopyBtn" style="margin-top:8px;display:flex;align-items:center;gap:4px;background:var(--ink);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer;">コピー</button>
+  </div>
+
   <div class="card" id="reinvestCard">
     <h2>分配金再投資の内訳</h2>
     <div class="row" style="flex-wrap:wrap;">
@@ -161,6 +172,7 @@
     <label>日付</label>
     <input type="date" id="fDate" required />
     <div id="fieldsPurchase" style="display:none;">
+      <div class="last-hint" id="lastPurchaseHint" style="display:none;"></div>
       <label>取得方法</label>
       <div class="source-toggle" id="sourceToggle">
         <button type="button" class="src-btn active" data-src="cash">通常購入</button>
@@ -180,9 +192,13 @@
       <input type="number" step="any" id="fPrice2" placeholder="例: 1320" />
     </div>
     <div class="err" id="formErr" style="display:none;"></div>
-    <div style="display:flex;gap:8px;">
+    <div style="display:flex;gap:8px;" id="saveButtons">
       <button type="button" id="saveOnlyBtn" class="submit-btn" style="flex:1;background:#fff;color:#1B2A4A;border:1px solid #1B2A4A;">記録のみ保存</button>
       <button type="button" id="saveWithDraftBtn" class="submit-btn" style="flex:1.3;">記録して投稿文を作成</button>
+    </div>
+    <div style="display:none;gap:8px;" id="editButtons">
+      <button type="button" id="deleteInModalBtn" class="submit-btn" style="flex:0.8;background:#fff;color:#8B3A3A;border:1px solid #8B3A3A;">削除</button>
+      <button type="button" id="updateBtn" class="submit-btn" style="flex:1.3;">更新する</button>
     </div>
   </form>
 </div>
@@ -451,9 +467,87 @@ function computeYieldChartData(sorted){
   return results;
 }
 
+let selectedSummaryMonth = null;
+
+function monthKey(dateStr){
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+}
+function monthLabel(key){
+  const [y, m] = key.split("-");
+  return `${y}年${Number(m)}月`;
+}
+
+function computeMonthlySummary(sorted, key){
+  const [y, m] = key.split("-").map(Number);
+  const monthStart = new Date(y, m-1, 1);
+  const monthEnd = new Date(y, m, 0, 23, 59, 59);
+
+  const purchasesInMonth = sorted.filter(e => e.type==="purchase" && new Date(e.date) >= monthStart && new Date(e.date) <= monthEnd);
+  const dividendsInMonth = sorted.filter(e => e.type==="dividend" && new Date(e.date) >= monthStart && new Date(e.date) <= monthEnd);
+  const navInMonth = sorted.filter(e => e.type==="nav" && new Date(e.date) >= monthStart && new Date(e.date) <= monthEnd);
+  const navBefore = sorted.filter(e => e.type==="nav" && new Date(e.date) < monthStart);
+
+  const purchaseShares = purchasesInMonth.reduce((s,e)=>s+e.shares, 0);
+  const purchaseCost = purchasesInMonth.reduce((s,e)=>s+e.shares*e.price, 0);
+  const dividendTotal = dividendsInMonth.reduce((s,e)=>s+e.amount, 0);
+
+  const navStart = navInMonth.length ? navInMonth[0].price : (navBefore.length ? navBefore[navBefore.length-1].price : null);
+  const navEnd = navInMonth.length ? navInMonth[navInMonth.length-1].price : navStart;
+  const navChangePct = (navStart != null && navEnd != null && navStart !== 0) ? ((navEnd - navStart) / navStart) * 100 : null;
+
+  const totalSharesEnd = sorted.filter(e => e.type==="purchase" && new Date(e.date) <= monthEnd).reduce((s,e)=>s+e.shares, 0);
+  const valuationEnd = navEnd != null ? navEnd * totalSharesEnd : null;
+
+  return { purchaseShares, purchaseCost, dividendTotal, navStart, navEnd, navChangePct, totalSharesEnd, valuationEnd };
+}
+
+function buildSummaryText(key){
+  const s = computeMonthlySummary(sortedEntries(), key);
+  const lines = [`📒 ${monthLabel(key)}のゴロクサン記録`, ""];
+  lines.push(s.purchaseShares > 0 ? `購入: ${s.purchaseShares}口(${fmtYen(s.purchaseCost)})` : "購入: なし");
+  lines.push(s.dividendTotal > 0 ? `分配金: ${fmtYen(s.dividendTotal)}` : "分配金: なし");
+  if(s.navStart != null && s.navEnd != null){
+    const pct = s.navChangePct != null ? `(${s.navChangePct>=0?"+":""}${s.navChangePct.toFixed(1)}%)` : "";
+    lines.push(s.navStart === s.navEnd ? `基準価額: ${fmtYen(s.navEnd)}` : `基準価額: ${fmtYen(s.navStart)} → ${fmtYen(s.navEnd)} ${pct}`);
+  }
+  lines.push(`保有口数: ${s.totalSharesEnd}口`);
+  if(s.valuationEnd != null) lines.push(`評価額: ${fmtYen(s.valuationEnd)}`);
+  lines.push("", "#563A #月次レポート");
+  return lines.join("\n");
+}
+
+function renderSummaryCard(sorted){
+  const card = document.getElementById("summaryCard");
+  const keys = [...new Set(sorted.map(e => monthKey(e.date)))].sort().reverse();
+  if(keys.length === 0){ card.style.display = "none"; return; }
+  card.style.display = "block";
+
+  if(!selectedSummaryMonth || !keys.includes(selectedSummaryMonth)) selectedSummaryMonth = keys[0];
+
+  const select = document.getElementById("summaryMonthSelect");
+  select.innerHTML = keys.map(k => `<option value="${k}"${k===selectedSummaryMonth?" selected":""}>${monthLabel(k)}</option>`).join("");
+  document.getElementById("summaryText").value = buildSummaryText(selectedSummaryMonth);
+}
+
+document.getElementById("summaryMonthSelect").addEventListener("change", (e)=>{
+  selectedSummaryMonth = e.target.value;
+  document.getElementById("summaryText").value = buildSummaryText(selectedSummaryMonth);
+});
+document.getElementById("summaryCopyBtn").onclick = ()=>{
+  navigator.clipboard.writeText(document.getElementById("summaryText").value).then(()=>{
+    const btn = document.getElementById("summaryCopyBtn");
+    const orig = btn.textContent;
+    btn.textContent = "コピー済み";
+    setTimeout(()=> btn.textContent = orig, 1500);
+  });
+};
+
 function render(){
   const sorted = sortedEntries();
   const stats = computeStats(sorted);
+
+  renderSummaryCard(sorted);
 
   document.getElementById("statNav").textContent = stats.latestNav!=null ? fmtYen(stats.latestNav) : "未登録";
   document.getElementById("statShares").textContent = stats.totalShares + "口";
@@ -538,7 +632,7 @@ function render(){
         valHtml = `${e.shares}口 × ${fmtYen(e.price)}`;
         if(e.source==="reinvest") tagHtml = '<span class="reinvest-tag">再投資</span>';
       }
-      return `<div class="ledger-row">
+      return `<div class="ledger-row" data-id="${e.id}" style="cursor:pointer;">
         ${iconHtml}
         <div style="flex:1;min-width:0;">
           <div class="ledger-meta num">${fmtDate(e.date)} ・ ${T.label}${tagHtml}</div>
@@ -549,8 +643,19 @@ function render(){
     }).join("");
   }
 
+  document.querySelectorAll(".ledger-row").forEach(row=>{
+    row.addEventListener("click", (ev)=>{
+      if(ev.target.closest(".del-btn")) return;
+      const entry = entries.find(e => e.id === row.dataset.id);
+      if(entry) openForm(entry.type, entry);
+    });
+  });
   document.querySelectorAll(".del-btn").forEach(btn=>{
-    btn.onclick = ()=>{ entries = entries.filter(e=>e.id!==btn.dataset.id); save(); render(); };
+    btn.onclick = (ev)=>{
+      ev.stopPropagation();
+      if(!confirm("この記録を削除しますか？")) return;
+      entries = entries.filter(e=>e.id!==btn.dataset.id); save(); render();
+    };
   });
 }
 
@@ -569,22 +674,46 @@ function buildDraft(entry, allEntries){
 // modal
 const overlay = document.getElementById("modalOverlay");
 const modal = document.getElementById("modal");
-function openForm(type){
+let editingId = null;
+
+function openForm(type, editEntry){
   formType = type;
-  purchaseSource = "cash";
+  editingId = editEntry ? editEntry.id : null;
+  purchaseSource = editEntry ? (editEntry.source || "cash") : "cash";
   document.querySelectorAll(".src-btn").forEach(b=>{
-    b.classList.toggle("active", b.dataset.src === "cash");
+    b.classList.toggle("active", b.dataset.src === purchaseSource);
   });
-  document.getElementById("modalTitle").textContent = TYPES[type].label + "を記録";
-  document.getElementById("fDate").value = todayISO();
-  document.getElementById("fShares").value = "";
-  document.getElementById("fPrice1").value = "";
-  document.getElementById("fAmount").value = "";
-  document.getElementById("fPrice2").value = "";
+  document.getElementById("modalTitle").textContent = editEntry ? (TYPES[type].label + "を編集") : (TYPES[type].label + "を記録");
+  document.getElementById("fDate").value = editEntry ? editEntry.date : todayISO();
+  document.getElementById("fShares").value = editEntry && editEntry.shares != null ? editEntry.shares : "";
+  document.getElementById("fPrice1").value = editEntry && editEntry.type === "purchase" ? editEntry.price : "";
+  document.getElementById("fAmount").value = editEntry && editEntry.amount != null ? editEntry.amount : "";
+  document.getElementById("fPrice2").value = editEntry && editEntry.type === "nav" ? editEntry.price : "";
   document.getElementById("formErr").style.display = "none";
   document.getElementById("fieldsPurchase").style.display = type==="purchase" ? "block":"none";
   document.getElementById("fieldsDividend").style.display = type==="dividend" ? "block":"none";
   document.getElementById("fieldsNav").style.display = type==="nav" ? "block":"none";
+
+  document.getElementById("saveButtons").style.display = editEntry ? "none" : "flex";
+  document.getElementById("editButtons").style.display = editEntry ? "flex" : "none";
+
+  const hint = document.getElementById("lastPurchaseHint");
+  if(!editEntry && type === "purchase"){
+    const lastPurchase = [...sortedEntries()].reverse().find(e => e.type === "purchase");
+    if(lastPurchase){
+      hint.style.display = "flex";
+      hint.innerHTML = `<span>前回: ${lastPurchase.shares}口 × ${fmtYen(lastPurchase.price)}</span><button type="button" id="useLastBtn">同じ値を使う</button>`;
+      document.getElementById("useLastBtn").onclick = ()=>{
+        document.getElementById("fShares").value = lastPurchase.shares;
+        document.getElementById("fPrice1").value = lastPurchase.price;
+      };
+    } else {
+      hint.style.display = "none";
+    }
+  } else {
+    hint.style.display = "none";
+  }
+
   overlay.style.display = "flex";
 }
 document.querySelectorAll(".fab").forEach(b=> b.onclick = ()=> openForm(b.dataset.type));
@@ -621,34 +750,39 @@ overlay.onclick = (e)=>{ if(e.target===overlay) overlay.style.display="none"; };
 
 document.getElementById("modal").onsubmit = (e)=> e.preventDefault();
 
-function handleSave(generateDraft){
-  const errEl = document.getElementById("formErr");
+function readFormFields(){
   const date = document.getElementById("fDate").value;
-  let entry = { id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())), type: formType, date };
-
+  const fields = { date };
   if(formType==="purchase"){
     const shares = parseFloat(document.getElementById("fShares").value);
     const price = parseFloat(document.getElementById("fPrice1").value);
-    if(!shares || !price){ errEl.textContent="口数と単価を入力してください"; errEl.style.display="block"; return; }
-    entry.shares = shares; entry.price = price; entry.source = purchaseSource;
+    if(!shares || !price) return { error: "口数と単価を入力してください" };
+    fields.shares = shares; fields.price = price; fields.source = purchaseSource;
   } else if(formType==="dividend"){
     const amount = parseFloat(document.getElementById("fAmount").value);
-    if(!amount){ errEl.textContent="分配金額を入力してください"; errEl.style.display="block"; return; }
-    entry.amount = amount;
+    if(!amount) return { error: "分配金額を入力してください" };
+    fields.amount = amount;
   } else {
     const price = parseFloat(document.getElementById("fPrice2").value);
-    if(!price){ errEl.textContent="基準価額を入力してください"; errEl.style.display="block"; return; }
-    entry.price = price;
+    if(!price) return { error: "基準価額を入力してください" };
+    fields.price = price;
   }
+  return { fields };
+}
+
+function dedupeNav(list, entry){
+  const dupIds = list.filter(x => x.type === "nav" && x.date === entry.date && x.id !== entry.id).map(x => x.id);
+  return dupIds.length ? list.filter(x => !dupIds.includes(x.id)) : list;
+}
+
+function handleSave(generateDraft){
+  const errEl = document.getElementById("formErr");
+  const { fields, error } = readFormFields();
+  if(error){ errEl.textContent = error; errEl.style.display = "block"; return; }
+  let entry = { id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())), type: formType, ...fields };
 
   entries.push(entry);
-  if(formType === "nav"){
-    // 同じ日付の基準価額が既にあれば古い方を消して重複を防ぐ
-    const dupIds = entries.filter(x => x.type === "nav" && x.date === entry.date && x.id !== entry.id).map(x => x.id);
-    if(dupIds.length){
-      entries = entries.filter(x => !dupIds.includes(x.id));
-    }
-  }
+  if(formType === "nav") entries = dedupeNav(entries, entry);
   save();
   render();
   overlay.style.display = "none";
@@ -662,6 +796,28 @@ function handleSave(generateDraft){
 
 document.getElementById("saveOnlyBtn").onclick = ()=> handleSave(false);
 document.getElementById("saveWithDraftBtn").onclick = ()=> handleSave(true);
+
+document.getElementById("updateBtn").onclick = ()=>{
+  const errEl = document.getElementById("formErr");
+  const { fields, error } = readFormFields();
+  if(error){ errEl.textContent = error; errEl.style.display = "block"; return; }
+  entries = entries.map(e => e.id === editingId ? { id: editingId, type: formType, ...fields } : e);
+  if(formType === "nav"){
+    const updated = entries.find(e => e.id === editingId);
+    entries = dedupeNav(entries, updated);
+  }
+  save();
+  render();
+  overlay.style.display = "none";
+};
+
+document.getElementById("deleteInModalBtn").onclick = ()=>{
+  if(!confirm("この記録を削除しますか？")) return;
+  entries = entries.filter(e => e.id !== editingId);
+  save();
+  render();
+  overlay.style.display = "none";
+};
 
 document.getElementById("copyBtn").onclick = ()=>{
   const ta = document.getElementById("draftText");
