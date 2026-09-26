@@ -51,10 +51,6 @@
   .legend-row{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:10px;font-size:11px;color:#5C5646;}
   .legend-row span{display:flex;align-items:center;gap:5px;}
   .legend-row i{width:14px;height:3px;border-radius:2px;display:inline-block;}
-  .forecast-total-row{display:flex;justify-content:center;margin:2px 0 10px;}
-  .forecast-total{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:8px 16px;text-align:center;}
-  .forecast-total .l{font-size:11px;color:var(--muted);}
-  .forecast-total .v{font-size:18px;font-weight:700;font-family:'JetBrains Mono',monospace;color:#5C5646;}
   #divChartCard{display:none;padding:16px 8px 8px;}
   #divChartCard h2{padding:0 8px 8px;}
   #chartCard{display:none;padding:16px 8px 8px;}
@@ -169,14 +165,14 @@
   <div class="card" id="forecastChartCard" style="display:none;">
     <h2>分配金予想(今後12ヶ月)</h2>
     <div class="hint" id="forecastHint"></div>
-    <div class="forecast-total-row">
-      <div class="forecast-total"><div class="l" id="forecastCumLabel">これまでの累計分配金</div><div class="v num" id="forecastCumTotal">¥0</div></div>
-    </div>
     <canvas id="forecastChart" class="mini-chart" style="height:200px;"></canvas>
     <div class="legend-row">
-      <span><i style="background:var(--ink-light);"></i>実績</span>
+      <span><i style="background:var(--ink-light);"></i>実績(月次)</span>
       <span><i style="background:var(--copper);border:none;border-top:2px dashed var(--copper);height:0;"></i>予想(期待利回り15%)</span>
       <span><i style="background:var(--gold);border:none;border-top:2px dashed var(--gold);height:0;"></i>予想(過去実績利回り)</span>
+    </div>
+    <div class="legend-row" style="margin-top:-4px;">
+      <span><i style="background:var(--muted);"></i><span id="forecastCumLegendLabel">累計分配金(右軸)</span></span>
     </div>
   </div>
 
@@ -462,7 +458,8 @@ function attachBarTap(canvas, valueEl, labels, values, valueFormat, layout){
 function drawForecastChart(canvas, labels, series, opts){
   const { ctx, width, height } = setupCanvas(canvas);
   ctx.clearRect(0, 0, width, height);
-  const padL = 44, padR = 10, padT = 14, padB = 30;
+  const hasSecondary = !!(opts.secondarySeries && opts.secondarySeries.length);
+  const padL = 44, padR = hasSecondary ? 48 : 10, padT = 14, padB = 30;
   const plotW = width - padL - padR, plotH = height - padT - padB;
 
   const allValues = series.flatMap(s => s.values.filter(v => v != null));
@@ -489,6 +486,35 @@ function drawForecastChart(canvas, labels, series, opts){
     ctx.fillStyle = "#8A8371"; ctx.font = "9.5px 'Zen Kaku Gothic New', sans-serif"; ctx.textAlign = "center";
     ctx.fillText("今月", x, padT - 3);
     ctx.restore();
+  }
+
+  if(hasSecondary){
+    const allSec = opts.secondarySeries.flatMap(s => s.values.filter(v => v != null));
+    const rawMinS = Math.min(0, ...allSec), rawMaxS = Math.max(...allSec, 1);
+    const ticksS = niceTicks(rawMinS, rawMaxS, 4);
+    const minS = ticksS[0], maxS = ticksS[ticksS.length - 1];
+    const yForS = (v) => padT + plotH - ((v - minS) / (maxS - minS || 1)) * plotH;
+
+    ctx.fillStyle = "#C4B896"; ctx.font = "9px 'JetBrains Mono', monospace"; ctx.textAlign = "left";
+    ticksS.forEach(t => {
+      const y = yForS(t);
+      ctx.fillText(opts.secondaryFormat ? opts.secondaryFormat(t) : String(t), width - padR + 6, y + 3);
+    });
+
+    opts.secondarySeries.forEach(s => {
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash(s.dashed ? [4, 3] : []);
+      ctx.beginPath();
+      let started = false;
+      s.values.forEach((v, i) => {
+        if(v == null) return;
+        const x = xFor(i), y = yForS(v);
+        if(!started){ ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    });
   }
 
   series.forEach(s => {
@@ -680,9 +706,6 @@ function renderForecastChart(divPoints, yieldData, stats){
   }
   card.style.display = "block";
 
-  document.getElementById("forecastCumTotal").textContent = fmtYen(stats.totalDividends);
-  document.getElementById("forecastCumLabel").textContent = `これまでの累計分配金(${taxMode === "net" ? "税引き後" : "税引き前"})`;
-
   // 実績は直近6ヶ月まで
   const recentKeys = pastKeys.slice(-6);
   const pastLabels = recentKeys;
@@ -724,7 +747,35 @@ function renderForecastChart(divPoints, yieldData, stats){
   ];
   if(historicalAvgYieldPct != null) series.push({ values: historicalValues, color: "#C9A227", dashed: true });
 
-  drawForecastChart(document.getElementById("forecastChart"), labels, series, { valueFormat: (v) => fmtYen(v), todayIndex: bridgeIndex });
+  // 累計分配金の推移(右軸)。表示中の直近実績より前にすでに受け取っていた分配金を起点にする。
+  const baselineCum = stats.totalDividends - pastValues.reduce((s,v)=>s+v, 0);
+  const cumActual = [];
+  { let running = baselineCum;
+    labels.forEach((_, i) => {
+      if(i < pastLabels.length){ running += pastValues[i]; cumActual.push(running); }
+      else cumActual.push(null);
+    });
+  }
+  const cumAtBridge = cumActual[bridgeIndex];
+  const cumExpected = labels.map((_, i) => {
+    if(i === bridgeIndex) return cumAtBridge;
+    if(i > bridgeIndex) return cumAtBridge + expectedMonthly * (i - bridgeIndex);
+    return null;
+  });
+  const cumHistorical = historicalMonthly == null ? labels.map(()=>null) : labels.map((_, i) => {
+    if(i === bridgeIndex) return cumAtBridge;
+    if(i > bridgeIndex) return cumAtBridge + historicalMonthly * (i - bridgeIndex);
+    return null;
+  });
+
+  const secondarySeries = [
+    { values: cumActual, color: "#8A8371", dashed: false },
+    { values: cumExpected, color: "#D99A6C", dashed: true },
+  ];
+  if(historicalAvgYieldPct != null) secondarySeries.push({ values: cumHistorical, color: "#DDC988", dashed: true });
+
+  drawForecastChart(document.getElementById("forecastChart"), labels, series, { valueFormat: (v) => fmtYen(v), todayIndex: bridgeIndex, secondarySeries, secondaryFormat: (v) => fmtYen(v) });
+  document.getElementById("forecastCumLegendLabel").textContent = `累計分配金(右軸・${taxMode === "net" ? "税引き後" : "税引き前"})`;
 
   const histText = historicalAvgYieldPct != null ? `過去実績平均 年利${historicalAvgYieldPct.toFixed(1)}%` : "過去実績データが不足しているため過去実績ベースの予想は非表示です";
   document.getElementById("forecastHint").textContent = `現在の評価額(${fmtYen(valuation)})を基準に、期待利回り15%(固定)と${histText}で試算した参考値です。`;
