@@ -51,6 +51,10 @@
   .legend-row{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:10px;font-size:11px;color:#5C5646;}
   .legend-row span{display:flex;align-items:center;gap:5px;}
   .legend-row i{width:14px;height:3px;border-radius:2px;display:inline-block;}
+  .forecast-total-row{display:flex;justify-content:center;margin:2px 0 10px;}
+  .forecast-total{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:8px 16px;text-align:center;}
+  .forecast-total .l{font-size:11px;color:var(--muted);}
+  .forecast-total .v{font-size:18px;font-weight:700;font-family:'JetBrains Mono',monospace;color:#5C5646;}
   #divChartCard{display:none;padding:16px 8px 8px;}
   #divChartCard h2{padding:0 8px 8px;}
   #chartCard{display:none;padding:16px 8px 8px;}
@@ -165,6 +169,9 @@
   <div class="card" id="forecastChartCard" style="display:none;">
     <h2>分配金予想(今後12ヶ月)</h2>
     <div class="hint" id="forecastHint"></div>
+    <div class="forecast-total-row">
+      <div class="forecast-total"><div class="l" id="forecastCumLabel">これまでの累計分配金</div><div class="v num" id="forecastCumTotal">¥0</div></div>
+    </div>
     <canvas id="forecastChart" class="mini-chart" style="height:200px;"></canvas>
     <div class="legend-row">
       <span><i style="background:var(--ink-light);"></i>実績</span>
@@ -672,6 +679,9 @@ function renderForecastChart(divPoints, yieldData, stats){
     return;
   }
   card.style.display = "block";
+
+  document.getElementById("forecastCumTotal").textContent = fmtYen(stats.totalDividends);
+  document.getElementById("forecastCumLabel").textContent = `これまでの累計分配金(${taxMode === "net" ? "税引き後" : "税引き前"})`;
 
   // 実績は直近6ヶ月まで
   const recentKeys = pastKeys.slice(-6);
