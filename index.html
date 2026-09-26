@@ -103,9 +103,9 @@
 <header>
   <div class="eyebrow">投資通帳</div>
   <h1>ゴロクサン</h1>
-  <div class="sub">563A 運用ノート — 購入・分配金・基準価額</div>
+  <div class="sub">563A 運用ノート — 購入・分配金・株価</div>
   <button type="button" class="nav-update" id="navUpdateBtn">
-    <div><div class="l">基準価額(最新)</div><div class="v num" id="statNav">未登録</div></div>
+    <div><div class="l">株価(最新)</div><div class="v num" id="statNav">未登録</div></div>
     <div class="edit">✎ 更新</div>
   </button>
   <div class="stats">
@@ -156,8 +156,8 @@
   </div>
 
   <div class="card" id="yieldChartCard">
-    <h2>年利換算利回り(前月平均基準価額比)</h2>
-    <div class="hint">各月の分配金 ÷ 前月平均基準価額 × 12ヶ月分(表示期間は分配金の推移と連動)</div>
+    <h2>年利換算利回り(前月平均株価比)</h2>
+    <div class="hint">各月の分配金 ÷ 前月平均株価 × 12ヶ月分(表示期間は分配金の推移と連動)</div>
     <canvas id="yieldChart" class="mini-chart"></canvas>
     <div class="chart-tap-value" id="yieldChartValue"></div>
   </div>
@@ -177,7 +177,7 @@
   </div>
 
   <div class="card" id="chartCard">
-    <h2>基準価額の推移</h2>
+    <h2>株価の推移</h2>
     <canvas id="navChart" class="mini-chart"></canvas>
   </div>
 
@@ -193,7 +193,7 @@
     <div class="tabs">
       <button type="button" class="tab-btn active" id="tabPurchase">売買</button>
       <button type="button" class="tab-btn" id="tabDividend">分配金</button>
-      <button type="button" class="tab-btn" id="tabNav">基準価額</button>
+      <button type="button" class="tab-btn" id="tabNav">株価</button>
     </div>
     <div id="ledger"></div>
   </div>
@@ -229,7 +229,7 @@
       <div class="computed-total" id="divTotalPreview">合計(税引き前): ¥0</div>
     </div>
     <div id="fieldsNav" style="display:none;">
-      <label>基準価額(円)</label>
+      <label>株価(円)</label>
       <input type="number" step="any" id="fPrice2" placeholder="例: 1320" />
     </div>
     <div class="err" id="formErr" style="display:none;"></div>
@@ -250,7 +250,7 @@ const MONTHLY_GOAL = 10000;
 const TYPES = {
   purchase: { label: "購入" },
   dividend: { label: "分配金" },
-  nav: { label: "基準価額" },
+  nav: { label: "株価" },
 };
 
 let entries = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
@@ -662,7 +662,7 @@ function buildSummaryText(key){
   lines.push(s.dividendTotal > 0 ? `分配金: ${fmtYen(s.dividendTotal)}` : "分配金: なし");
   if(s.navStart != null && s.navEnd != null){
     const pct = s.navChangePct != null ? `(${s.navChangePct>=0?"+":""}${s.navChangePct.toFixed(1)}%)` : "";
-    lines.push(s.navStart === s.navEnd ? `基準価額: ${fmtYen(s.navEnd)}` : `基準価額: ${fmtYen(s.navStart)} → ${fmtYen(s.navEnd)} ${pct}`);
+    lines.push(s.navStart === s.navEnd ? `株価: ${fmtYen(s.navEnd)}` : `株価: ${fmtYen(s.navStart)} → ${fmtYen(s.navEnd)} ${pct}`);
   }
   lines.push(`保有口数: ${s.totalSharesEnd}口`);
   if(s.valuationEnd != null) lines.push(`評価額: ${fmtYen(s.valuationEnd)}`);
@@ -867,7 +867,7 @@ function render(){
 
   const ledger = document.getElementById("ledger");
   const tabEntries = sorted.filter(e => e.type === ledgerTab);
-  const emptyMsg = { purchase: "まだ購入記録がありません。", dividend: "まだ分配金の記録がありません。", nav: "まだ基準価額の記録がありません。" };
+  const emptyMsg = { purchase: "まだ購入記録がありません。", dividend: "まだ分配金の記録がありません。", nav: "まだ株価の記録がありません。" };
   if(tabEntries.length === 0){
     ledger.innerHTML = `<div class="empty">${emptyMsg[ledgerTab]}</div>`;
   } else {
@@ -921,7 +921,7 @@ function buildDraft(entry, allEntries){
   if(entry.type==="dividend"){
     return `563Aの分配金 ${fmtYen(taxAdjust(entry.amount))} を受け取りました💰\n今月累計 ${fmtYen(s.thisMonth)} / 目標${fmtYen(MONTHLY_GOAL)}\n\n#563A #カバードコール #配当金生活`;
   }
-  return `563Aの基準価額は${fmtYen(entry.price)}でした📊\n保有${s.totalShares}口の評価額は${s.valuation!=null?fmtYen(s.valuation):"―"}\n\n#563A #資産推移`;
+  return `563Aの株価は${fmtYen(entry.price)}でした📊\n保有${s.totalShares}口の評価額は${s.valuation!=null?fmtYen(s.valuation):"―"}\n\n#563A #資産推移`;
 }
 
 // modal
@@ -1047,7 +1047,7 @@ function readFormFields(){
     fields.shares = divShares; fields.perUnit = perUnit; fields.amount = Math.round(divShares * perUnit * 100) / 100;
   } else {
     const price = parseFloat(document.getElementById("fPrice2").value);
-    if(!price) return { error: "基準価額を入力してください" };
+    if(!price) return { error: "株価を入力してください" };
     fields.price = price;
   }
   return { fields };
@@ -1121,7 +1121,7 @@ function buildSnapshotDraft(){
     const pct = s.plPct != null ? `(${s.plPct>=0?"+":""}${s.plPct.toFixed(1)}%)` : "";
     lines.push(`評価損益: ${s.unrealizedPL>=0?"+":""}${fmtYen(s.unrealizedPL)} ${pct}`);
   }
-  if(s.latestNav != null) lines.push(`基準価額: ${fmtYen(s.latestNav)}`);
+  if(s.latestNav != null) lines.push(`株価: ${fmtYen(s.latestNav)}`);
   lines.push(`累計分配金: ${fmtYen(s.totalDividends)}`);
   lines.push("", "#563A #グローバルX #サイドFIRE");
   return lines.join("\n");
