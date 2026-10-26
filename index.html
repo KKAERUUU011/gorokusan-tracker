@@ -80,9 +80,6 @@
   input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);margin-bottom:12px;font-family:'JetBrains Mono',monospace;font-size:14px;background:#fff;}
   .err{color:var(--loss);font-size:12px;margin-bottom:10px;}
   .computed-total{font-size:12px;color:#5C5646;margin:-4px 0 12px;text-align:right;}
-  .tax-toggle{display:flex;gap:6px;margin-top:10px;}
-  .tax-toggle button{flex:1;padding:7px 0;border-radius:8px;font-size:11.5px;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:var(--paper);opacity:.7;}
-  .tax-toggle button.active{background:rgba(196,99,43,.28);border-color:rgba(196,99,43,.6);opacity:1;}
   .last-hint{display:flex;align-items:center;justify-content:space-between;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:12px;font-size:12px;color:#5C5646;}
   .last-hint button{background:var(--ink);color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11.5px;cursor:pointer;}
   .source-toggle{display:flex;gap:8px;margin-bottom:12px;}
@@ -116,6 +113,26 @@
   .goal-eta-box .text{font-size:12px;line-height:1.5;color:#5C5646;}
   .goal-eta-box .text b{color:var(--copper);font-family:'JetBrains Mono',monospace;}
 
+  .cash-eq{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:14px;}
+  .cash-eq .l{font-size:10.5px;color:var(--muted);}
+  .cash-eq .v{font-size:14.5px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+  .cash-eq .op{font-size:15px;color:var(--muted);padding-top:12px;}
+  .cash-bar-wrap{position:relative;margin-bottom:8px;}
+  .cash-bar{display:flex;height:16px;background:#F0ECE0;border-radius:6px;overflow:hidden;}
+  .cash-seg-now{background:linear-gradient(90deg,#3D5A80,#6C8FB5);height:100%;}
+  .cash-seg-next{background:#3D5A80;opacity:.28;height:100%;}
+  .cash-tiles{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .cash-tiles .tile{flex:1;background:var(--paper);border:1px solid #EFE9DA;border-radius:10px;padding:8px 12px;}
+  .cash-tiles .tile.next{border-color:rgba(61,90,128,.45);}
+  .cash-tiles .l{font-size:10.5px;color:var(--muted);}
+  .cash-tiles .v{font-size:22px;font-weight:700;color:var(--ink);}
+  .cash-tiles .tile.next .v{color:#3D5A80;}
+  .cash-tiles small{font-size:12px;margin-left:2px;color:var(--muted);}
+  .cash-tiles .arrow{color:var(--muted);}
+  .cash-legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:10.5px;color:#5C5646;margin-bottom:10px;}
+  .cash-legend i{display:inline-block;width:10px;height:8px;border-radius:2px;margin-right:4px;vertical-align:middle;}
+  .cash-result{background:var(--paper);border:1px solid #EFE9DA;border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.7;color:#5C5646;}
+  .cash-result b{color:var(--copper);font-family:'JetBrains Mono',monospace;}
   .cover-row{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:10px;}
   .cover-row .label{font-size:11px;color:var(--muted);}
   .cover-row .value{font-size:13px;}
@@ -147,10 +164,6 @@
     <div class="stat"><div class="l">評価額</div><div class="v num" id="statValuation">―</div></div>
     <div class="stat"><div class="l">評価損益</div><div class="v num" id="statPL">―</div></div>
     <div class="stat"><div class="l" id="dividendsLabel">累計分配金</div><div class="v num" id="statDividends">¥0</div></div>
-  </div>
-  <div class="tax-toggle" id="taxToggle">
-    <button type="button" data-mode="gross" class="active">税引き前</button>
-    <button type="button" data-mode="net">税引き後(20.315%)</button>
   </div>
   <button type="button" id="snapshotPostBtn" class="snapshot-btn">📮 今の状況をXに投稿</button>
 </header>
@@ -199,7 +212,7 @@
 
   <div class="card" id="coverCard">
     <h2>分配金による生活費カバー率</h2>
-    <div class="hint">今月の分配金(税引き後)が、入力した生活費全体のどれくらいをカバーできているかです。目標ラインは生活費の50%に設定しています。</div>
+    <div class="hint">今月の分配金(税引き前)が、入力した生活費全体のどれくらいをカバーできているかです。目標ラインは生活費の50%に設定しています。</div>
 
     <div class="cover-row">
       <div class="label">カバー率(生活費全体に対して)</div>
@@ -225,6 +238,34 @@
       <div class="col" style="min-width:45%;"><div class="l">その口数が得た分配金</div><div class="v num" id="reinvestEarnedDividend" style="color:#3D5A80;">¥0</div></div>
     </div>
     <div style="font-size:10.5px;color:#B8AF98;margin-top:8px;">※「その口数が得た分配金」は、各回の分配金を当時の保有口数で按分した推定値です</div>
+  </div>
+
+  <div class="card" id="cashCard" style="display:none;">
+    <h2>分配金の残高(再投資に回せる額)</h2>
+    <div class="hint" id="cashHint" style="padding:0;margin-bottom:12px;"></div>
+    <div class="cash-eq">
+      <div><div class="l" id="cashTotalLabel">累計分配金</div><div class="v num" id="cashTotal">¥0</div></div>
+      <div class="op">−</div>
+      <div><div class="l">再投資に使った額</div><div class="v num" id="cashUsed">¥0</div></div>
+      <div class="op">＝</div>
+      <div><div class="l">残額</div><div class="v num" id="cashRemain" style="color:#3D5A80;">¥0</div></div>
+    </div>
+    <div class="cash-bar-wrap">
+      <div class="cash-bar" id="cashBar">
+        <div class="cash-seg-now" id="cashSegNow"></div>
+        <div class="cash-seg-next" id="cashSegNext"></div>
+      </div>
+    </div>
+    <div class="cash-legend">
+      <span><i style="background:#3D5A80;"></i>今ある残額</span>
+      <span><i style="background:#3D5A80;opacity:.28;"></i>次回の分配金見込み</span>
+    </div>
+    <div class="cash-tiles">
+      <div class="tile"><div class="l">今の残額で</div><div class="v num"><span id="cashBuyNow">0</span><small>口</small></div></div>
+      <div class="arrow">→</div>
+      <div class="tile next"><div class="l">次の分配金が入ると</div><div class="v num"><span id="cashBuyAfter">0</span><small>口</small></div></div>
+    </div>
+    <div class="cash-result" id="cashResult"></div>
   </div>
 
   <div class="card" id="divChartCard">
@@ -310,6 +351,7 @@
     <div id="fieldsDividend" style="display:none;">
       <label>口数</label>
       <input type="number" step="any" id="fDivShares" placeholder="例: 46" />
+      <div id="divSharesHint" style="font-size:11px;color:var(--muted);margin:-6px 0 12px;line-height:1.5;"></div>
       <label>一口あたり分配金(円)</label>
       <input type="number" step="any" id="fDivPerUnit" placeholder="例: 30" />
       <div class="computed-total" id="divTotalPreview">合計(税引き前): ¥0</div>
@@ -343,11 +385,8 @@ let entries = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
 let formType = "purchase";
 let purchaseSource = "cash";
 let ledgerTab = "purchase";
-let taxMode = localStorage.getItem("gorokusan-tax-mode") || "gross";
 let dividendPeriod = localStorage.getItem("gorokusan-div-period") || "12";
 const LIVING_COST_KEY = "gorokusan-living-cost";
-const TAX_RATE = 0.20315;
-function taxAdjust(amount){ return taxMode === "net" ? amount * (1 - TAX_RATE) : amount; }
 
 function fmtYen(n){ return "¥" + Math.round(n).toLocaleString("ja-JP"); }
 function fmtDate(d){ const dt=new Date(d); return `${dt.getFullYear()}.${String(dt.getMonth()+1).padStart(2,"0")}.${String(dt.getDate()).padStart(2,"0")}`; }
@@ -643,12 +682,17 @@ function computeStats(list){
       if(e.source==="reinvest"){ reinvestShares+=e.shares; reinvestCost+=e.shares*e.price; }
     }
     else if(e.type==="dividend"){
-      const amt = taxAdjust(e.amount);
-      totalDividends+=amt;
-      if(totalShares > 0){
-        const perShare = amt / totalShares;
-        reinvestEarnedDividend += perShare * reinvestShares;
+      totalDividends+=e.amount;
+      // 権利付き最終日(入金月の前月10日の2営業日前)時点で保有していた口数だけが、この分配金の対象
+      const cutoff = isoLocal(cutoffDateFor(Number(e.date.slice(0,4)), Number(e.date.slice(5,7)) - 2));
+      let eligTotal = 0, eligReinvest = 0;
+      for(const p of list){
+        if(p.type === "purchase" && p.date <= cutoff){
+          eligTotal += p.shares;
+          if(p.source === "reinvest") eligReinvest += p.shares;
+        }
       }
+      if(eligTotal > 0) reinvestEarnedDividend += e.amount / eligTotal * eligReinvest;
     }
     else if(e.type==="nav"){ latestNav=e.price; }
   }
@@ -661,7 +705,7 @@ function computeStats(list){
   const thisMonth = list.filter(e=>{
     const d=new Date(e.date);
     return e.type==="dividend" && d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth();
-  }).reduce((s,e)=>s+taxAdjust(e.amount),0);
+  }).reduce((s,e)=>s+e.amount,0);
   return { totalShares, totalDividends, valuation, thisMonth, latestNav, totalCost, avgCost, unrealizedPL, plPct, reinvestShares, reinvestCost, reinvestAvgPrice, reinvestEarnedDividend };
 }
 
@@ -682,12 +726,7 @@ function computeYieldChartData(sorted){
     if(e.type !== "dividend") continue;
     const d = new Date(e.date);
     const key = `${d.getFullYear()}-${d.getMonth()}`;
-    divByMonth[key] = (divByMonth[key]||0) + taxAdjust(e.amount);
-  }
-
-  function sharesHeldAsOf(dateObj){
-    return sorted.filter(e => e.type==="purchase" && new Date(e.date) <= dateObj)
-      .reduce((s,e)=>s+e.shares, 0);
+    divByMonth[key] = (divByMonth[key]||0) + e.amount;
   }
 
   const results = [];
@@ -697,8 +736,7 @@ function computeYieldChartData(sorted){
     const prevKey = `${prevDate.getFullYear()}-${prevDate.getMonth()}`;
     const avgNav = avgNavByMonth[prevKey];
     if(avgNav == null) return;
-    const endOfPrevMonth = new Date(y, m, 0);
-    const shares = sharesHeldAsOf(endOfPrevMonth);
+    const shares = sharesAsOfISO(sorted, isoLocal(cutoffDateFor(y, m-1)));
     if(shares <= 0) return;
     const div = divByMonth[key];
     const yieldPct = (div / (avgNav * shares)) * 12 * 100;
@@ -715,20 +753,13 @@ function computeGoalStats(sorted, stats, livingCost){
   const divByMonth = {};
   for(const e of sorted){
     if(e.type !== "dividend") continue;
-    const d = new Date(e.date);
-    const key = `${d.getFullYear()}-${d.getMonth()}`;
-    divByMonth[key] = (divByMonth[key] || 0) + taxAdjust(e.amount);
+    const key = e.date.slice(0,7);
+    divByMonth[key] = (divByMonth[key] || 0) + e.amount;
   }
-  function sharesHeldAsOf(dateObj){
-    return sorted.filter(e => e.type==="purchase" && new Date(e.date) <= dateObj).reduce((s,e)=>s+e.shares, 0);
-  }
-  const monthKeys = Object.keys(divByMonth).sort();
-  const recentKeys = monthKeys.slice(-6);
   const perShareRates = [];
-  recentKeys.forEach(key => {
-    const [y, m] = key.split("-").map(Number);
-    const endOfMonth = new Date(y, m+1, 0);
-    const shares = sharesHeldAsOf(endOfMonth);
+  Object.keys(divByMonth).sort().slice(-6).forEach(key => {
+    const y = Number(key.slice(0,4)), m = Number(key.slice(5,7)) - 1;
+    const shares = sharesAsOfISO(sorted, isoLocal(cutoffDateFor(y, m - 1)));
     if(shares > 0) perShareRates.push(divByMonth[key] / shares);
   });
   if(perShareRates.length === 0) return null;
@@ -790,7 +821,7 @@ function computeMonthlySummary(sorted, key){
 
   const purchaseShares = purchasesInMonth.reduce((s,e)=>s+e.shares, 0);
   const purchaseCost = purchasesInMonth.reduce((s,e)=>s+e.shares*e.price, 0);
-  const dividendTotal = dividendsInMonth.reduce((s,e)=>s+taxAdjust(e.amount), 0);
+  const dividendTotal = dividendsInMonth.reduce((s,e)=>s+e.amount, 0);
 
   const navStart = navInMonth.length ? navInMonth[0].price : (navBefore.length ? navBefore[navBefore.length-1].price : null);
   const navEnd = navInMonth.length ? navInMonth[navInMonth.length-1].price : navStart;
@@ -843,7 +874,7 @@ document.getElementById("summaryCopyBtn").onclick = ()=>{
   });
 };
 
-function renderForecastChart(divPoints, yieldData, stats){
+function renderForecastChart(sorted, divPoints, yieldData, stats){
   const card = document.getElementById("forecastChartCard");
   const valuation = stats.valuation;
   const pastKeys = Object.keys(divPoints); // "YYYY.MM" 昇順
@@ -858,33 +889,40 @@ function renderForecastChart(divPoints, yieldData, stats){
   const pastLabels = recentKeys;
   const pastValues = recentKeys.map(k => divPoints[k]);
 
-  // 来月から12ヶ月分のラベルを作る
-  const now = new Date();
+  // 最新の実績月の翌月から12ヶ月分。入金月ごとに、前月10日の権利付き最終日時点の口数で試算する。
+  const lastKey = recentKeys[recentKeys.length - 1];
+  const ly = Number(lastKey.slice(0,4)), lm = Number(lastKey.slice(5,7)) - 1;
   const futureLabels = [];
+  const futureShares = [];
   for(let i = 1; i <= 12; i++){
-    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const d = new Date(ly, lm + i, 1);
     futureLabels.push(`${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}`);
+    futureShares.push(sharesAsOfISO(sorted, isoLocal(cutoffDateFor(d.getFullYear(), d.getMonth() - 1))));
   }
 
   const labels = [...pastLabels, ...futureLabels];
   const bridgeIndex = pastLabels.length - 1;
   const lastActual = pastValues[pastValues.length - 1];
 
-  const expectedMonthly = valuation * 0.15 / 12;
+  const nav = stats.latestNav;
+  const expectedList = futureShares.map(sh => (sh * nav * 0.15 / 12));
   const historicalAvgYieldPct = yieldData.length > 0
     ? yieldData.reduce((s,d)=>s+d.yield, 0) / yieldData.length
     : null;
-  const historicalMonthly = historicalAvgYieldPct != null ? valuation * (historicalAvgYieldPct/100) / 12 : null;
+  const historicalList = historicalAvgYieldPct != null
+    ? futureShares.map(sh => sh * nav * (historicalAvgYieldPct/100) / 12)
+    : null;
 
+  const futureAt = (list, i) => list[i - pastLabels.length];
   const actualValues = labels.map((_, i) => i < pastLabels.length ? pastValues[i] : null);
   const expectedValues = labels.map((_, i) => {
     if(i === bridgeIndex) return lastActual;
-    if(i > bridgeIndex) return expectedMonthly;
+    if(i > bridgeIndex) return futureAt(expectedList, i);
     return null;
   });
-  const historicalValues = historicalMonthly == null ? labels.map(()=>null) : labels.map((_, i) => {
+  const historicalValues = historicalList == null ? labels.map(()=>null) : labels.map((_, i) => {
     if(i === bridgeIndex) return lastActual;
-    if(i > bridgeIndex) return historicalMonthly;
+    if(i > bridgeIndex) return futureAt(historicalList, i);
     return null;
   });
 
@@ -904,16 +942,16 @@ function renderForecastChart(divPoints, yieldData, stats){
     });
   }
   const cumAtBridge = cumActual[bridgeIndex];
-  const cumExpected = labels.map((_, i) => {
-    if(i === bridgeIndex) return cumAtBridge;
-    if(i > bridgeIndex) return cumAtBridge + expectedMonthly * (i - bridgeIndex);
-    return null;
-  });
-  const cumHistorical = historicalMonthly == null ? labels.map(()=>null) : labels.map((_, i) => {
-    if(i === bridgeIndex) return cumAtBridge;
-    if(i > bridgeIndex) return cumAtBridge + historicalMonthly * (i - bridgeIndex);
-    return null;
-  });
+  const runningCum = (list) => {
+    let run = cumAtBridge;
+    return labels.map((_, i) => {
+      if(i === bridgeIndex) return cumAtBridge;
+      if(i > bridgeIndex){ run += futureAt(list, i); return run; }
+      return null;
+    });
+  };
+  const cumExpected = runningCum(expectedList);
+  const cumHistorical = historicalList == null ? labels.map(()=>null) : runningCum(historicalList);
 
   const secondarySeries = [
     { values: cumActual, color: "#8A8371", dashed: false },
@@ -922,10 +960,123 @@ function renderForecastChart(divPoints, yieldData, stats){
   if(historicalAvgYieldPct != null) secondarySeries.push({ values: cumHistorical, color: "#DDC988", dashed: true });
 
   drawForecastChart(document.getElementById("forecastChart"), labels, series, { valueFormat: (v) => fmtYen(v), todayIndex: bridgeIndex, secondarySeries, secondaryFormat: (v) => fmtYen(v) });
-  document.getElementById("forecastCumLegendLabel").textContent = `累計分配金(右軸・${taxMode === "net" ? "税引き後" : "税引き前"})`;
+  document.getElementById("forecastCumLegendLabel").textContent = `累計分配金(右軸・税引き前)`;
 
   const histText = historicalAvgYieldPct != null ? `過去実績平均 年利${historicalAvgYieldPct.toFixed(1)}%` : "過去実績データが不足しているため過去実績ベースの予想は非表示です";
-  document.getElementById("forecastHint").textContent = `現在の評価額(${fmtYen(valuation)})を基準に、期待利回り15%(固定)と${histText}で試算した参考値です。`;
+  document.getElementById("forecastHint").textContent = `最新株価(${fmtYen(nav)})と、各月の権利付き最終日(毎月10日の2営業日前)時点の口数を基準に、期待利回り15%(固定)と${histText}で試算した参考値です。`;
+}
+
+// ---- 権利日ベースの口数計算 ----
+// 権利確定日は毎月10日。権利付き最終日はその2営業日前(土日のみ考慮・祝日は未考慮)。
+// 分配金は翌月20日前までに入金される。
+function isoLocal(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+function subBusinessDays(d, n){
+  const r = new Date(d);
+  while(n > 0){
+    r.setDate(r.getDate() - 1);
+    const w = r.getDay();
+    if(w !== 0 && w !== 6) n--;
+  }
+  return r;
+}
+function cutoffDateFor(year, monthIdx){ return subBusinessDays(new Date(year, monthIdx, 10), 2); }
+function sharesAsOfISO(sorted, iso){
+  return sorted.filter(e => e.type === "purchase" && e.date <= iso).reduce((s,e)=>s+e.shares, 0);
+}
+const WD = ["日","月","火","水","木","金","土"];
+function fmtMD(d){ return `${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]})`; }
+
+// 直近6ヶ月の「1口あたり月分配金」の平均(税引き前)。
+// 入金月 M の分配金は、M-1 月10日の権利付き最終日時点の口数で割る。記録がなければ null。
+function computeAvgDividendPerShare(sorted){
+  const divByMonth = {};
+  for(const e of sorted){
+    if(e.type !== "dividend") continue;
+    const key = e.date.slice(0,7);
+    divByMonth[key] = (divByMonth[key] || 0) + e.amount;
+  }
+  const rates = [];
+  Object.keys(divByMonth).sort().slice(-6).forEach(key => {
+    const y = Number(key.slice(0,4)), m = Number(key.slice(5,7)) - 1;
+    const cutoff = isoLocal(cutoffDateFor(y, m - 1));
+    const shares = sharesAsOfISO(sorted, cutoff);
+    if(shares > 0) rates.push(divByMonth[key] / shares);
+  });
+  return rates.length ? rates.reduce((s,v)=>s+v, 0) / rates.length : null;
+}
+
+// 次に入金される分配金の権利情報。最新の分配金記録の月の10日が次の権利確定日。
+function getNextDividendInfo(sorted){
+  const divs = sorted.filter(e => e.type === "dividend");
+  if(!divs.length) return null;
+  const last = divs[divs.length - 1];
+  const y = Number(last.date.slice(0,4)), m = Number(last.date.slice(5,7)) - 1;
+  const cutoff = cutoffDateFor(y, m);
+  return {
+    recordDate: new Date(y, m, 10),
+    cutoff,
+    sharesAtCutoff: sharesAsOfISO(sorted, isoLocal(cutoff)),
+    payDeadline: new Date(y, m + 1, 20),
+  };
+}
+
+function renderCashCard(sorted, stats){
+  const card = document.getElementById("cashCard");
+  // 分配金は税引き前で統一
+  const totalGross = sorted.filter(e => e.type === "dividend").reduce((s,e)=>s+e.amount, 0);
+  if(totalGross <= 0){ card.style.display = "none"; return; }
+  card.style.display = "block";
+
+  const fmtSigned = (n) => (n < 0 ? "−" : "") + fmtYen(Math.abs(n));
+  const remain = totalGross - stats.reinvestCost;
+  const base = Math.max(0, remain);
+
+  document.getElementById("cashTotalLabel").textContent = "累計分配金(税引き前)";
+  document.getElementById("cashTotal").textContent = fmtYen(totalGross);
+  document.getElementById("cashUsed").textContent = fmtYen(stats.reinvestCost);
+  const remainEl = document.getElementById("cashRemain");
+  remainEl.textContent = fmtSigned(remain);
+  remainEl.style.color = remain < 0 ? "#8B3A3A" : "#3D5A80";
+  document.getElementById("cashHint").textContent =
+    "税引き前の累計分配金から、再投資で買った口数の取得額を引いた残りです。";
+
+  const price = stats.latestNav;
+  const avgPerShare = computeAvgDividendPerShare(sorted);
+  const info = getNextDividendInfo(sorted);
+  const nextShares = info ? info.sharesAtCutoff : stats.totalShares;
+  const nextDiv = avgPerShare != null ? avgPerShare * nextShares : 0;
+  const total = base + nextDiv;
+
+  const segNow = document.getElementById("cashSegNow");
+  const segNext = document.getElementById("cashSegNext");
+  const result = document.getElementById("cashResult");
+  const scale = Math.max(total, 1);
+  segNow.style.width = `${(base / scale) * 100}%`;
+  segNext.style.width = `${(nextDiv / scale) * 100}%`;
+
+  if(price == null || price <= 0){
+    document.getElementById("cashBuyNow").textContent = "―";
+    document.getElementById("cashBuyAfter").textContent = "―";
+    result.textContent = "株価を登録すると、何口買えるかを表示します。";
+    return;
+  }
+
+  const buyNow = Math.floor(base / price);
+  const buyAfter = Math.floor(total / price);
+  const leftover = total - buyAfter * price;
+  document.getElementById("cashBuyNow").textContent = buyNow;
+  document.getElementById("cashBuyAfter").textContent = avgPerShare != null ? buyAfter : "―";
+  let html = `残額 <b>${fmtYen(base)}</b> ÷ 株価 ${fmtYen(price)} ＝ <b>${buyNow}口</b>。`;
+  if(avgPerShare != null && info){
+    const todayIso = isoLocal(new Date());
+    const noteBuy = todayIso > isoLocal(info.cutoff)
+      ? "今から買い増す口数は、その次の分配金から対象になります。"
+      : `${fmtMD(info.cutoff)}までに買い増した口数は、次回の分配対象です。`;
+    html += `<br>次回の権利付き最終日は <b>${fmtMD(info.cutoff)}</b>。その時点の <b>${nextShares}口</b> × 見込み単価 ${fmtYen(avgPerShare)} ＝ <b>${fmtYen(nextDiv)}</b>(入金は ${info.payDeadline.getMonth()+1}/20頃まで)。` +
+            `<br>残額に足すと <b>${fmtYen(total)}</b> で、${buyAfter + 1}口目まであと <b>${fmtYen(price - leftover)}</b> です。` +
+            `<br><span style="color:var(--muted);font-size:11px;">${noteBuy}(祝日は考慮していません)</span>`;
+  }
+  result.innerHTML = html;
 }
 
 function renderGoalAndCover(sorted, stats){
@@ -987,9 +1138,10 @@ function render(){
     plEl.style.color = stats.unrealizedPL > 0 ? "#8FD4A8" : stats.unrealizedPL < 0 ? "#E38787" : "";
   }
   document.getElementById("statDividends").textContent = fmtYen(stats.totalDividends);
-  document.getElementById("dividendsLabel").textContent = `累計分配金(${taxMode === "net" ? "税引き後" : "税引き前"})`;
+  document.getElementById("dividendsLabel").textContent = `累計分配金(税引き前)`;
 
   renderGoalAndCover(sorted, stats);
+  renderCashCard(sorted, stats);
 
   const reinvestCard = document.getElementById("reinvestCard");
   if(stats.reinvestShares > 0){
@@ -1005,7 +1157,7 @@ function render(){
   sorted.filter(e => e.type === "dividend").forEach(e => {
     const d = new Date(e.date);
     const key = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}`;
-    divPoints[key] = (divPoints[key] || 0) + taxAdjust(e.amount);
+    divPoints[key] = (divPoints[key] || 0) + e.amount;
   });
   let divEntries = Object.entries(divPoints);
   if(dividendPeriod !== "all") divEntries = divEntries.slice(-parseInt(dividendPeriod, 10));
@@ -1036,7 +1188,7 @@ function render(){
     yieldChartCard.style.display = "none";
   }
 
-  renderForecastChart(divPoints, yieldData, stats);
+  renderForecastChart(sorted, divPoints, yieldData, stats);
 
   const navPoints = sorted.filter(e=>e.type==="nav");
   const chartCard = document.getElementById("chartCard");
@@ -1066,7 +1218,7 @@ function render(){
       if(e.type==="dividend"){
         iconHtml = '<div class="stamp">済</div>';
         const composition = (e.shares!=null && e.perUnit!=null) ? `<span style="font-weight:400;color:#8A8371;"> (${e.shares}口×${fmtYen(e.perUnit)})</span>` : "";
-        valHtml = `${fmtYen(taxAdjust(e.amount))}${composition}`;
+        valHtml = `${fmtYen(e.amount)}${composition}`;
       }
       else if(e.type==="nav"){ iconHtml = '<div class="icon-circle" style="background:rgba(196,99,43,.14);">📈</div>'; valHtml = fmtYen(e.price); }
       else {
@@ -1108,7 +1260,7 @@ function buildDraft(entry, allEntries){
     return `563Aを${entry.shares}口購入📝${tag}\n取得単価 ${fmtYen(entry.price)}\n保有口数は${s.totalShares}口になりました🌱\n\n#563A #グローバルX #サイドFIRE`;
   }
   if(entry.type==="dividend"){
-    return `563Aの分配金 ${fmtYen(taxAdjust(entry.amount))} を受け取りました💰\n今月累計 ${fmtYen(s.thisMonth)} / 目標${fmtYen(MONTHLY_GOAL)}\n\n#563A #カバードコール #配当金生活`;
+    return `563Aの分配金 ${fmtYen(entry.amount)} を受け取りました💰\n今月累計 ${fmtYen(s.thisMonth)} / 目標${fmtYen(MONTHLY_GOAL)}\n\n#563A #カバードコール #配当金生活`;
   }
   return `563Aの株価は${fmtYen(entry.price)}でした📊\n保有${s.totalShares}口の評価額は${s.valuation!=null?fmtYen(s.valuation):"―"}\n\n#563A #資産推移`;
 }
@@ -1124,17 +1276,32 @@ function updateDivTotalPreview(){
   const total = shares * perUnit;
   document.getElementById("divTotalPreview").textContent = `合計(税引き前): ${fmtYen(total)}`;
 }
+// 分配金の対象口数 = 入金月の前月10日の2営業日前(権利付き最終日)時点の保有口数
+let divSharesTouched = false;
+function eligibleSharesForDate(dateISO){
+  if(!dateISO) return null;
+  const y = Number(dateISO.slice(0,4)), m = Number(dateISO.slice(5,7)) - 1;
+  const cutoff = cutoffDateFor(y, m - 1);
+  return { cutoff, shares: sharesAsOfISO(sortedEntries(), isoLocal(cutoff)) };
+}
+function updateDivSharesHint(){
+  const hint = document.getElementById("divSharesHint");
+  const info = eligibleSharesForDate(document.getElementById("fDate").value);
+  if(!info){ hint.textContent = ""; return null; }
+  const now = computeStats(sortedEntries()).totalShares;
+  hint.textContent = `権利付き最終日 ${fmtMD(info.cutoff)} 時点の保有口数: ${info.shares}口` + (now !== info.shares ? `(現在は${now}口)` : "");
+  return info.shares;
+}
+document.getElementById("fDivShares").addEventListener("input", () => { divSharesTouched = true; });
+document.getElementById("fDate").addEventListener("change", () => {
+  const sh = updateDivSharesHint();
+  if(formType === "dividend" && !editingId && !divSharesTouched){
+    document.getElementById("fDivShares").value = sh || "";
+    updateDivTotalPreview();
+  }
+});
 document.getElementById("fDivShares").addEventListener("input", updateDivTotalPreview);
 document.getElementById("fDivPerUnit").addEventListener("input", updateDivTotalPreview);
-
-document.querySelectorAll(".tax-toggle button").forEach(btn=>{
-  btn.onclick = ()=>{
-    taxMode = btn.dataset.mode;
-    localStorage.setItem("gorokusan-tax-mode", taxMode);
-    document.querySelectorAll(".tax-toggle button").forEach(b=> b.classList.toggle("active", b===btn));
-    render();
-  };
-});
 
 document.getElementById("livingCostEditBtn").onclick = () => {
   document.getElementById("costRowDisplay").style.display = "none";
@@ -1175,9 +1342,11 @@ function openForm(type, editEntry){
   document.getElementById("fDate").value = editEntry ? editEntry.date : todayISO();
   document.getElementById("fShares").value = editEntry && editEntry.shares != null ? editEntry.shares : "";
   document.getElementById("fPrice1").value = editEntry && editEntry.type === "purchase" ? editEntry.price : "";
+  divSharesTouched = !!editEntry;
+  const eligibleShares = updateDivSharesHint();
   document.getElementById("fDivShares").value = editEntry && editEntry.type === "dividend" && editEntry.shares != null
     ? editEntry.shares
-    : (!editEntry ? computeStats(sortedEntries()).totalShares || "" : "");
+    : (!editEntry ? (eligibleShares || "") : "");
   document.getElementById("fDivPerUnit").value = editEntry && editEntry.type === "dividend" && editEntry.perUnit != null ? editEntry.perUnit : "";
   document.getElementById("fPrice2").value = editEntry && editEntry.type === "nav" ? editEntry.price : "";
   updateDivTotalPreview();
@@ -1343,10 +1512,6 @@ document.getElementById("snapshotPostBtn").onclick = ()=>{
   document.getElementById("draftText").value = buildSnapshotDraft();
   draftCard.scrollIntoView({ behavior: "smooth", block: "center" });
 };
-
-document.querySelectorAll(".tax-toggle button").forEach(b=>{
-  b.classList.toggle("active", b.dataset.mode === taxMode);
-});
 
 render();
 
