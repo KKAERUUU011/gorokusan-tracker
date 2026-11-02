@@ -147,6 +147,43 @@
   .cover-footer .num{color:#241F17;font-weight:600;}
 
   @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important;}}
+
+.pn-overlay{position:fixed;inset:0;background:rgba(16,25,46,.55);display:none;align-items:center;justify-content:center;z-index:1000;padding:20px}
+.pn-overlay.show{display:flex}
+.pn-box{background:#fff;border-radius:16px;max-width:420px;width:100%;max-height:80vh;overflow:auto;padding:20px 18px 16px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+.pn-box h2{font-size:17px;margin:0 0 2px}
+.pn-box .pn-sub{font-size:11px;color:#8A8371;margin-bottom:12px}
+.pn-ver{margin-bottom:14px}
+.pn-ver .vh{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
+.pn-ver .vn{font-weight:700;font-size:13px;color:#C4632B}
+.pn-ver .vd{font-size:11px;color:#8A8371}
+.pn-ver ul{margin:0;padding-left:18px;font-size:12.5px;line-height:1.7;color:#3A3528}
+.pn-close{width:100%;background:#10192E;color:#fff;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px}
+.pn-link{display:block;text-align:center;font-size:12px;color:#C9C2AE;background:none;border:none;margin:18px auto 24px;padding:6px 10px;cursor:pointer;text-decoration:underline}
+#patchNotesLink{margin-bottom:110px!important}
+
+body:not(.layout-edit) .user-hidden{display:none!important}
+.layout-edit .user-hidden{opacity:.4}
+.layout-edit main .card{outline:2px dashed #DCD5C3;outline-offset:2px}
+.lay-bar{display:flex;align-items:center;gap:6px;margin:-6px -6px 10px;padding:6px 8px;background:#F7F5EE;border-radius:8px}
+.lay-bar .nm{flex:1;font-size:12px;font-weight:700;color:#10192E;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lay-bar button{border:1px solid #DCD5C3;background:#fff;border-radius:6px;min-width:34px;height:30px;font-size:14px;cursor:pointer;color:#10192E}
+.lay-bar button:disabled{opacity:.3}
+.lay-bar button.eye{font-size:12px;font-weight:600;padding:0 8px}
+.lay-top{display:none;position:sticky;top:0;z-index:50;background:#C4632B;color:#fff;font-size:12px;padding:8px 14px;align-items:center;justify-content:space-between;gap:8px}
+.layout-edit .lay-top{display:flex}
+.lay-top button{background:#fff;color:#C4632B;border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer}
+.lay-top .rst{background:transparent;color:#fff;text-decoration:underline;padding:5px 4px;font-weight:400}
+.buy-tiles{display:flex;align-items:stretch;gap:6px;margin:8px 0 10px}
+.buy-tiles .bt{flex:1;background:var(--paper);border:1px solid #EFE9DA;border-radius:10px;padding:7px 9px}
+.buy-tiles .bt.now{border-color:rgba(61,90,128,.45)}
+.buy-tiles .bt .l{font-size:10.5px;color:var(--muted)}
+.buy-tiles .bt .v{font-size:17px;font-weight:700}
+.buy-tiles .bt.now .v{color:#3D5A80}
+.buy-tiles .bt small{font-size:11px;color:var(--muted);margin-left:1px}
+.buy-tiles .bt-arrow{align-self:center;color:var(--muted)}
+.src-legend{display:flex;gap:14px;font-size:11px;color:var(--muted);margin:6px 0 2px}
+.src-legend i{display:inline-block;width:10px;height:8px;border-radius:2px;margin-right:4px}
 </style>
 </head>
 <body>
@@ -168,6 +205,7 @@
   <button type="button" id="snapshotPostBtn" class="snapshot-btn">📮 今の状況をXに投稿</button>
 </header>
 
+<div class="lay-top" id="layTop"><span>並べ替えモード</span><span><button type="button" class="rst" id="layReset">初期化</button><button type="button" id="layDone">完了</button></span></div>
 <main>
   <div class="card" id="summaryCard" style="display:none;">
     <div class="row" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
@@ -268,6 +306,20 @@
     <div class="cash-result" id="cashResult"></div>
   </div>
 
+  <div class="card" id="buyableCard" style="display:none;">
+    <h2>分配金だけで買える口数の推移</h2>
+    <div class="hint">各月の分配金(税引き前) ÷ その時点の株価。分配金だけで毎月何口ぶん増やせるかの目安です(表示期間は分配金の推移と連動)。</div>
+    <div class="buy-tiles">
+      <div class="bt"><div class="l" id="buyFirstL">初月</div><div class="v num" id="buyFirstV">―</div></div>
+      <div class="bt-arrow">→</div>
+      <div class="bt now"><div class="l" id="buyLastL">最新月</div><div class="v num" id="buyLastV">―</div></div>
+      <div class="bt"><div class="l">期間の合計</div><div class="v num" id="buySumV">―</div></div>
+    </div>
+    <canvas id="buyableChart" class="mini-chart"></canvas>
+    <div class="chart-tap-value" id="buyableChartValue"></div>
+    <div class="cash-result" id="buyableNote"></div>
+  </div>
+
   <div class="card" id="divChartCard">
     <div class="row" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
       <h2 style="margin:0;">分配金の推移(月次)</h2>
@@ -280,6 +332,18 @@
     </div>
     <canvas id="dividendChart" class="mini-chart"></canvas>
     <div class="chart-tap-value" id="dividendChartValue"></div>
+  </div>
+
+  <div class="card" id="divSourceCard" style="display:none;">
+    <h2>分配金の内訳(元本 / 再投資)</h2>
+    <div class="hint">各月の分配金を、投入元本で買った口数から出た分と、分配金の再投資で増えた口数から出た分に分けて積み上げます(表示期間は分配金の推移と連動)。</div>
+    <div class="src-legend">
+      <span><i style="background:#3D5A80;"></i>元本の口数から</span>
+      <span><i style="background:#C9A227;"></i>再投資の口数から</span>
+    </div>
+    <canvas id="divSourceChart" class="mini-chart"></canvas>
+    <div class="chart-tap-value" id="divSourceChartValue"></div>
+    <div class="cash-result" id="divSourceNote"></div>
   </div>
 
   <div class="card" id="yieldChartCard">
@@ -316,7 +380,7 @@
     <textarea id="draftText" rows="5"></textarea>
   </div>
 
-  <div class="card">
+  <div class="card" id="ledgerCard">
     <div class="tabs">
       <button type="button" class="tab-btn active" id="tabPurchase">売買</button>
       <button type="button" class="tab-btn" id="tabDividend">分配金</button>
@@ -372,6 +436,15 @@
   </form>
 </div>
 
+
+<button type="button" class="pn-link" id="layEditLink" style="margin-bottom:0">画面の並べ替え・表示設定</button>
+<button type="button" class="pn-link" id="patchNotesLink" style="margin-top:8px">更新履歴を見る</button>
+<div class="pn-overlay" id="pnOverlay"><div class="pn-box">
+  <h2 id="pnTitle">アップデートのお知らせ</h2>
+  <div class="pn-sub" id="pnSub"></div>
+  <div id="pnBody"></div>
+  <button type="button" class="pn-close" id="pnClose">閉じる</button>
+</div></div>
 <script>
 const STORAGE_KEY = "gorokusan-entries";
 const MONTHLY_GOAL = 10000;
@@ -743,6 +816,108 @@ function computeYieldChartData(sorted){
     results.push({ month: `${y}.${String(m+1).padStart(2,"0")}`, yield: Number(yieldPct.toFixed(2)) });
   });
   return results;
+}
+
+
+// 各月の分配金を「元本の口数から」と「再投資の口数から」に按分する。
+// 権利付き最終日時点の保有口数のうち、source==="reinvest" の購入分を再投資とみなす。
+function computeDivSourceData(sorted){
+  const byMonth = {};
+  for(const e of sorted){
+    if(e.type !== "dividend") continue;
+    const cutoff = isoLocal(cutoffDateFor(Number(e.date.slice(0,4)), Number(e.date.slice(5,7)) - 2));
+    let tot = 0, re = 0;
+    for(const p of sorted){
+      if(p.type === "purchase" && p.date <= cutoff){
+        tot += p.shares;
+        if(p.source === "reinvest") re += p.shares;
+      }
+    }
+    const reAmt = tot > 0 ? e.amount * re / tot : 0;
+    const key = e.date.slice(0,7);
+    if(!byMonth[key]) byMonth[key] = { principal: 0, reinvest: 0 };
+    byMonth[key].reinvest += reAmt;
+    byMonth[key].principal += e.amount - reAmt;
+  }
+  return Object.keys(byMonth).sort().map(k => ({
+    month: k.slice(0,4)+"."+k.slice(5,7),
+    principal: Math.round(byMonth[k].principal),
+    reinvest: Math.round(byMonth[k].reinvest)
+  }));
+}
+
+// 2系列の縦積み上げ棒グラフ(下: a、上: b)
+function drawStackedBarChart(canvas, labels, a, b, opts){
+  const { ctx, width, height } = setupCanvas(canvas);
+  ctx.clearRect(0, 0, width, height);
+  const padL = 44, padR = 10, padT = 12, padB = 26;
+  const plotW = width - padL - padR, plotH = height - padT - padB;
+  const totals = a.map((v,i)=>v+b[i]);
+  const ticks = niceTicks(0, Math.max(...totals, 1), 4);
+  const min = ticks[0], max = ticks[ticks.length - 1];
+  const yFor = (v) => padT + plotH - ((v - min) / (max - min || 1)) * plotH;
+  const slot = plotW / labels.length;
+  const barW = Math.max(4, slot * 0.55);
+
+  ctx.strokeStyle = "#EFE9DA"; ctx.lineWidth = 1;
+  ctx.fillStyle = "#B8AF98"; ctx.font = "9.5px 'JetBrains Mono', monospace"; ctx.textAlign = "right";
+  ticks.forEach(t => {
+    const y = yFor(t);
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(width - padR, y); ctx.stroke();
+    ctx.fillText(opts.valueFormat ? opts.valueFormat(t) : String(t), padL - 6, y + 3);
+  });
+
+  const seg = (x, yTop, yBot, color, roundTop) => {
+    const h = yBot - yTop; if(h <= 0) return;
+    const r = roundTop ? Math.min(4, barW / 2, h) : 0;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x, yTop + r);
+    if(r > 0){ ctx.arcTo(x, yTop, x + r, yTop, r); ctx.arcTo(x + barW, yTop, x + barW, yTop + r, r); }
+    else { ctx.lineTo(x, yTop); ctx.lineTo(x + barW, yTop); }
+    ctx.lineTo(x + barW, yBot); ctx.lineTo(x, yBot);
+    ctx.closePath(); ctx.fill();
+  };
+  labels.forEach((_, i) => {
+    const x = padL + slot * i + (slot - barW) / 2;
+    const y0 = yFor(0), y1 = yFor(a[i]), y2 = yFor(a[i] + b[i]);
+    seg(x, y1, y0, opts.colorA, b[i] <= 0);
+    if(b[i] > 0) seg(x, y2, y1, opts.colorB, true);
+  });
+
+  ctx.fillStyle = "#8A8371"; ctx.font = "9.5px 'JetBrains Mono', monospace"; ctx.textAlign = "center";
+  const labelStep = Math.max(1, Math.ceil(labels.length / 6));
+  labels.forEach((lb, i) => {
+    if((labels.length - 1 - i) % labelStep !== 0) return;
+    ctx.fillText(lb, padL + slot * i + slot / 2, height - 8);
+  });
+  return { padL, slot };
+}
+
+// 各月の分配金だけで買える口数(分配金 ÷ 直近の株価)
+function computeBuyableData(sorted){
+  const navs = sorted.filter(e => e.type === "nav");
+  const priceAt = (iso) => {
+    let p = null;
+    for(const n of navs){ if(n.date <= iso) p = n.price; else break; }
+    if(p == null && navs.length) p = navs[0].price;
+    return p;
+  };
+  const byMonth = {};
+  for(const e of sorted){
+    if(e.type !== "dividend") continue;
+    const key = e.date.slice(0,7);
+    if(!byMonth[key]) byMonth[key] = { amount: 0, last: e.date };
+    byMonth[key].amount += e.amount;
+    if(e.date > byMonth[key].last) byMonth[key].last = e.date;
+  }
+  const out = [];
+  Object.keys(byMonth).sort().forEach(key => {
+    const price = priceAt(byMonth[key].last);
+    if(!price) return;
+    out.push({ month: key.slice(0,4)+"."+key.slice(5,7), units: Number((byMonth[key].amount / price).toFixed(2)), price });
+  });
+  return out;
 }
 
 // 生活費の50%を分配金で賄うための目標口数などを算出する。
@@ -1120,6 +1295,7 @@ function renderGoalAndCover(sorted, stats){
 }
 
 function render(){
+  if(typeof document !== "undefined" && document.body.classList.contains("layout-edit") && typeof buildLayoutBars === "function") setTimeout(buildLayoutBars,0);
   const sorted = sortedEntries();
   const stats = computeStats(sorted);
 
@@ -1173,6 +1349,37 @@ function render(){
     divChartCard.style.display = "none";
   }
 
+  const srcAll = computeDivSourceData(sorted);
+  let srcEntries = srcAll;
+  if(dividendPeriod !== "all") srcEntries = srcAll.slice(-parseInt(dividendPeriod, 10));
+  const divSourceCard = document.getElementById("divSourceCard");
+  if(srcEntries.length > 0){
+    divSourceCard.style.display = "block";
+    const sl = srcEntries.map(d=>d.month), sa = srcEntries.map(d=>d.principal), sb = srcEntries.map(d=>d.reinvest);
+    const sf = (v) => fmtYen(v);
+    const sLayout = drawStackedBarChart(document.getElementById("divSourceChart"), sl, sa, sb, { colorA: "#3D5A80", colorB: "#C9A227", valueFormat: sf });
+    const sCanvas = document.getElementById("divSourceChart"), sVal = document.getElementById("divSourceChartValue");
+    sCanvas.style.cursor = "pointer";
+    sCanvas.onclick = (evt) => {
+      const rect = sCanvas.getBoundingClientRect();
+      const idx = Math.floor((evt.clientX - rect.left - sLayout.padL) / sLayout.slot);
+      if(idx < 0 || idx >= sl.length){ sVal.textContent = ""; return; }
+      const t = sa[idx] + sb[idx];
+      sVal.textContent = `${sl[idx]}: 合計${fmtYen(t)}(元本 ${fmtYen(sa[idx])} / 再投資 ${fmtYen(sb[idx])}${t > 0 ? "・再投資分 " + Math.round(sb[idx]/t*100) + "%" : ""})`;
+    };
+    const sumA = sa.reduce((x,y)=>x+y,0), sumB = sb.reduce((x,y)=>x+y,0);
+    const note = document.getElementById("divSourceNote");
+    if(sumB <= 0){
+      note.textContent = "再投資の購入を「再投資」として記録すると、ここに色分けして表示されます。";
+    } else {
+      const lastT = sa[sa.length-1] + sb[sb.length-1];
+      note.innerHTML = `この期間の分配金 <b class="num">${fmtYen(sumA + sumB)}</b> のうち、再投資した口数から生まれた分は <b class="num">${fmtYen(sumB)}</b>(${Math.round(sumB/(sumA+sumB)*100)}%)。` +
+        (lastT > 0 ? `最新月は <b class="num">${Math.round(sb[sb.length-1]/lastT*100)}%</b> が再投資分です。` : "");
+    }
+  } else {
+    divSourceCard.style.display = "none";
+  }
+
   const yieldData = computeYieldChartData(sorted);
   let yieldEntries = yieldData;
   if(dividendPeriod !== "all") yieldEntries = yieldData.slice(-parseInt(dividendPeriod, 10));
@@ -1186,6 +1393,35 @@ function render(){
     attachBarTap(document.getElementById("yieldChart"), document.getElementById("yieldChartValue"), yLabels, yValues, yieldFmt, yieldLayout);
   } else {
     yieldChartCard.style.display = "none";
+  }
+
+  const buyAll = computeBuyableData(sorted);
+  let buyEntries = buyAll;
+  if(dividendPeriod !== "all") buyEntries = buyAll.slice(-parseInt(dividendPeriod, 10));
+  const buyableCard = document.getElementById("buyableCard");
+  if(buyEntries.length > 0){
+    buyableCard.style.display = "block";
+    const bl = buyEntries.map(d=>d.month), bv = buyEntries.map(d=>d.units);
+    const bf = (v) => `${v}口`;
+    const bLayout = drawBarChart(document.getElementById("buyableChart"), bl, bv, { color: "#3D5A80", valueFormat: bf });
+    attachBarTap(document.getElementById("buyableChart"), document.getElementById("buyableChartValue"), bl, bv, bf, bLayout);
+    const first = buyEntries[0], last = buyEntries[buyEntries.length-1];
+    const f1 = (n) => (Math.round(n*10)/10).toString();
+    document.getElementById("buyFirstL").textContent = first.month;
+    document.getElementById("buyLastL").textContent = last.month;
+    document.getElementById("buyFirstV").innerHTML = f1(first.units) + "<small>口</small>";
+    document.getElementById("buyLastV").innerHTML = f1(last.units) + "<small>口</small>";
+    document.getElementById("buySumV").innerHTML = f1(bv.reduce((a,b)=>a+b,0)) + "<small>口</small>";
+    const note = document.getElementById("buyableNote");
+    if(buyEntries.length >= 2 && first.units > 0){
+      const ratio = last.units / first.units;
+      note.innerHTML = `分配金だけで買える口数は <b class="num">${f1(first.units)}口 → ${f1(last.units)}口</b>(約${ratio.toFixed(1)}倍)。` +
+        (last.units >= 1 ? `いまは分配金だけで毎月 <b class="num">1口以上</b> 増やせる水準です。` : `あと <b class="num">${f1(1 - last.units)}口</b> で、分配金だけで毎月1口買えます。`);
+    } else {
+      note.textContent = "月が増えるほど、推移が見えてきます。";
+    }
+  } else {
+    buyableCard.style.display = "none";
   }
 
   renderForecastChart(sorted, divPoints, yieldData, stats);
@@ -1513,7 +1749,145 @@ document.getElementById("snapshotPostBtn").onclick = ()=>{
   draftCard.scrollIntoView({ behavior: "smooth", block: "center" });
 };
 
+// ===== パッチノート =====
+// 更新時は先頭に { v, date, items } を足し、APP_VERSION を同じ値にする
+const PATCH_NOTES = [
+  { v: "1.6.0", date: "2026-10-28", items: [
+    "「分配金の内訳(元本 / 再投資)」カードを追加(再投資の口数から生まれた分配金を色分けした積み上げ棒グラフで表示)"
+  ]},
+  { v: "1.5.0", date: "2026-10-28", items: [
+    "「分配金だけで買える口数の推移」カードを追加(毎月の分配金でどれだけ口数を増やせるかを表示)"
+  ]},
+  { v: "1.4.0", date: "2026-10-28", items: [
+    "画面の並べ替え・表示設定を追加(ページ最下部の「画面の並べ替え・表示設定」から)",
+    "カードを上下に移動したり、使わないカードを非表示にできます"
+  ]},
+  { v: "1.3.0", date: "2026-10-20", items: [
+    "FIRE目標カードを追加(生活費を入力すると目標口数と到達予測を表示)",
+    "生活費カバー率カードを追加(目標ラインは生活費の50%)",
+    "分配金の残高カードを追加(再投資に回せる額と買える口数)",
+    "分配金の計算に権利日を反映(毎月10日の2営業日前時点の口数で計算)",
+    "分配金の計算を税引き前に統一",
+    "分配金の記録フォームで、口数が権利日時点の保有口数で自動入力されるように"
+  ]},
+  { v: "1.2.0", date: "2026-10-05", items: [
+    "分配金予想グラフに累計分配金の線を追加",
+    "「基準価額」の表記を「株価」に変更"
+  ]}
+];
+const APP_VERSION = PATCH_NOTES[0].v;
+const SEEN_KEY = "gorokusan-last-seen-version";
+function cmpVer(a,b){const x=a.split(".").map(Number),y=b.split(".").map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0);}return 0;}
+function showPatchNotes(list, title){
+  document.getElementById("pnTitle").textContent = title;
+  document.getElementById("pnSub").textContent = "現在のバージョン v" + APP_VERSION;
+  document.getElementById("pnBody").innerHTML = list.map(n =>
+    '<div class="pn-ver"><div class="vh"><span class="vn">v'+n.v+'</span><span class="vd">'+n.date+'</span></div><ul>'+
+    n.items.map(i=>'<li>'+i+'</li>').join("")+'</ul></div>').join("");
+  document.getElementById("pnOverlay").classList.add("show");
+}
+function closePatchNotes(){
+  document.getElementById("pnOverlay").classList.remove("show");
+  try{ localStorage.setItem(SEEN_KEY, APP_VERSION); }catch(e){}
+}
+document.getElementById("pnClose").onclick = closePatchNotes;
+document.getElementById("pnOverlay").onclick = (e)=>{ if(e.target.id==="pnOverlay") closePatchNotes(); };
+document.getElementById("patchNotesLink").onclick = ()=> showPatchNotes(PATCH_NOTES, "更新履歴");
+(function(){
+  let seen = null;
+  try{ seen = localStorage.getItem(SEEN_KEY); }catch(e){}
+  if(seen === APP_VERSION) return;
+  if(seen === null && entries.length === 0){
+    try{ localStorage.setItem(SEEN_KEY, APP_VERSION); }catch(e){}
+    return; // 初めて使う人には出さない
+  }
+  const unseen = seen === null ? PATCH_NOTES.slice(0,1) : PATCH_NOTES.filter(n => cmpVer(n.v, seen) > 0);
+  if(unseen.length) showPatchNotes(unseen, "アップデートのお知らせ");
+})();
+
+// ===== レイアウト(並べ替え・表示切替) =====
+const LAYOUT_KEY = "gorokusan-layout";
+const LAYOUT_CARDS = [
+  ["summaryCard","月次サマリー"],["goalCard","FIRE目標への進捗"],["coverCard","生活費カバー率"],
+  ["reinvestCard","分配金再投資の内訳"],["cashCard","分配金の残高"],["buyableCard","分配金で買える口数"],["divChartCard","分配金の推移"],["divSourceCard","分配金の内訳(元本/再投資)"],
+  ["yieldChartCard","年利換算利回り"],["forecastChartCard","分配金予想"],["chartCard","株価の推移"],
+  ["draftCard","X投稿ドラフト"],["ledgerCard","記録一覧"]
+];
+const LAYOUT_NAME = Object.fromEntries(LAYOUT_CARDS);
+function loadLayout(){
+  let l = null;
+  try{ l = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "null"); }catch(e){}
+  const def = LAYOUT_CARDS.map(c=>c[0]);
+  if(!l || !Array.isArray(l.order)) return { order: def, hidden: [] };
+  const order = l.order.filter(id => LAYOUT_NAME[id]);
+  def.forEach(id => { if(!order.includes(id)) order.push(id); }); // 新カードは末尾へ
+  return { order, hidden: (l.hidden||[]).filter(id => LAYOUT_NAME[id]) };
+}
+let layout = loadLayout();
+function saveLayout(){ try{ localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); }catch(e){} }
+function applyLayout(){
+  const main = document.querySelector("main");
+  layout.order.forEach(id => { const el = document.getElementById(id); if(el) main.appendChild(el); });
+  LAYOUT_CARDS.forEach(([id]) => {
+    const el = document.getElementById(id);
+    if(el) el.classList.toggle("user-hidden", layout.hidden.includes(id));
+  });
+  if(document.body.classList.contains("layout-edit")) buildLayoutBars();
+}
+function moveCard(id, dir){
+  const i = layout.order.indexOf(id);
+  let j = i + dir;
+  // データがなくて非表示のカードは飛ばす
+  while(j >= 0 && j < layout.order.length){
+    const el = document.getElementById(layout.order[j]);
+    if(el && el.style.display !== "none") break;
+    j += dir;
+  }
+  if(j < 0 || j >= layout.order.length) return;
+  const [x] = layout.order.splice(i,1);
+  layout.order.splice(j,0,x);
+  saveLayout(); applyLayout();
+}
+function toggleCard(id){
+  const k = layout.hidden.indexOf(id);
+  if(k >= 0) layout.hidden.splice(k,1); else layout.hidden.push(id);
+  saveLayout(); applyLayout();
+}
+function buildLayoutBars(){
+  document.querySelectorAll(".lay-bar").forEach(b=>b.remove());
+  const visibleIds = layout.order.filter(id => { const el=document.getElementById(id); return el && el.style.display !== "none"; });
+  visibleIds.forEach((id, idx) => {
+    const el = document.getElementById(id);
+    const hid = layout.hidden.includes(id);
+    const bar = document.createElement("div");
+    bar.className = "lay-bar";
+    bar.innerHTML = '<span class="nm"></span><button type="button" data-a="up">↑</button><button type="button" data-a="down">↓</button><button type="button" class="eye" data-a="eye"></button>';
+    bar.querySelector(".nm").textContent = LAYOUT_NAME[id];
+    bar.querySelector(".eye").textContent = hid ? "表示する" : "非表示";
+    bar.querySelector('[data-a="up"]').disabled = idx === 0;
+    bar.querySelector('[data-a="down"]').disabled = idx === visibleIds.length - 1;
+    bar.onclick = (e)=>{
+      const a = e.target.dataset && e.target.dataset.a;
+      if(a === "up") moveCard(id,-1); else if(a === "down") moveCard(id,1); else if(a === "eye") toggleCard(id);
+    };
+    el.insertBefore(bar, el.firstChild);
+  });
+}
+function setLayoutEdit(on){
+  document.body.classList.toggle("layout-edit", on);
+  if(on){ buildLayoutBars(); window.scrollTo({top:0,behavior:"smooth"}); }
+  else document.querySelectorAll(".lay-bar").forEach(b=>b.remove());
+}
+document.getElementById("layEditLink").onclick = ()=> setLayoutEdit(true);
+document.getElementById("layDone").onclick = ()=> setLayoutEdit(false);
+document.getElementById("layReset").onclick = ()=>{
+  if(!confirm("並び順と表示設定を初期状態に戻しますか?")) return;
+  layout = { order: LAYOUT_CARDS.map(c=>c[0]), hidden: [] };
+  saveLayout(); applyLayout();
+};
+
 render();
+applyLayout();
 
 let resizeTimer = null;
 window.addEventListener("resize", () => {
